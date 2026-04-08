@@ -6,6 +6,7 @@ namespace Kraz\DoctrineContextBundle\EventListener;
 
 use Doctrine\DBAL\Schema\AbstractAsset;
 use Doctrine\DBAL\Schema\AbstractNamedObject;
+use Doctrine\DBAL\Schema\AbstractOptionallyNamedObject;
 use Doctrine\ORM\Tools\Console\Command\SchemaTool\UpdateCommand;
 use Doctrine\ORM\Tools\Console\Command\ValidateSchemaCommand;
 use Kraz\DoctrineContextBundle\Command\Doctrine\Schema\ValidateSchemaCommand as ValidateSchemaContextCommand;
@@ -26,16 +27,28 @@ final class SchemaFilterListener
     {
     }
 
-    public function __invoke(AbstractAsset|AbstractNamedObject|string $asset): bool
+    public function __invoke(AbstractAsset|AbstractNamedObject|AbstractOptionallyNamedObject|string $asset): bool
     {
         if (! $this->enabled) {
             return true;
         }
 
+        if ($asset instanceof AbstractNamedObject) {
+            $asset = $asset->getObjectName()->toString();
+        }
+
+        if ($asset instanceof AbstractOptionallyNamedObject) {
+            $name = $asset->getObjectName()?->toString();
+            if ($name === null) {
+                return true;
+            }
+
+            $asset = $name;
+        }
+
         if ($asset instanceof AbstractAsset) {
-            $asset = $asset instanceof AbstractNamedObject
-                ? $asset->getObjectName()->toString()
-                : $asset->getName();
+            /** @psalm-suppress DeprecatedMethod,InternalMethod */
+            $asset = $asset->getName();
         }
 
         return $asset !== $this->configurationTableName;

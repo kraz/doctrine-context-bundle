@@ -11,7 +11,7 @@ use Doctrine\ORM\Tools\Console\EntityManagerProvider;
 use Kraz\DoctrineContextBundle\Configuration\Configuration;
 use ReflectionClass;
 use Symfony\Component\Console\Command\Command;
-use Symfony\Component\Console\Exception\RuntimeException;
+use Symfony\Component\Console\Exception\InvalidArgumentException;
 use Symfony\Component\Console\Input\ArrayInput;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
@@ -26,7 +26,6 @@ use function asort;
 use function assert;
 use function count;
 use function sprintf;
-use function strval;
 use function trim;
 
 trait DoctrineContextTrait
@@ -38,7 +37,11 @@ trait DoctrineContextTrait
     {
         assert($this instanceof Command);
 
-        $this->setName($this->getName() ?: $command->getName());
+        $name = $this->getName() ?? $command->getName();
+        if ($name !== null) {
+            $this->setName($name);
+        }
+
         $this->setDescription(($this->getDescription() ?: $command->getDescription()) . ' [Doctrine Context]');
         $this->setAliases($this->getAliases() ?: $command->getAliases());
         $this->setHelp($this->getHelp() ?: $command->getHelp());
@@ -51,7 +54,7 @@ trait DoctrineContextTrait
         assert($this instanceof Command);
 
         if ($command instanceof AbstractEntityManagerCommand) {
-            $list = $this->filterDoctrineContexts(static fn (DependencyFactory $dependencyFactory) => $dependencyFactory->hasEntityManager(), strval($input->getOption('em')));
+            $list = $this->filterDoctrineContexts(static fn (DependencyFactory $dependencyFactory) => $dependencyFactory->hasEntityManager(), (string) $input->getOption('em'));
 
             return $this->walkDoctrineContexts(function (InputInterface $input, OutputInterface $output, string $em) use ($command) {
                 $command->setDefinition($this->getNativeDefinition());
@@ -63,12 +66,10 @@ trait DoctrineContextTrait
         }
 
         if ($command instanceof AbstractDoctrineMigrationCommand) {
-            $list = $this->filterDoctrineContexts(null, strval($input->getOption('em')), strval($input->getOption('conn')));
+            $list = $this->filterDoctrineContexts(null, (string) $input->getOption('em'), (string) $input->getOption('conn'));
 
             return $this->walkDoctrineContexts(function (InputInterface $input, OutputInterface $output, string $contextName, DependencyFactory $dependencyFactory) use ($command) {
-                $command   = new ReflectionClass($command)->newInstance($dependencyFactory);
-                $className = $command::class;
-                $command   = new $className($dependencyFactory);
+                $command = new ReflectionClass($command)->newInstance($dependencyFactory);
                 $command->setDefinition($this->getNativeDefinition());
                 $command->setApplication($this->getApplication());
 
@@ -76,7 +77,7 @@ trait DoctrineContextTrait
             }, $list, $input, $output);
         }
 
-        throw new RuntimeException(sprintf('Unsupported CLI command "%s"', $command::class));
+        throw new InvalidArgumentException(sprintf('Unsupported CLI command "%s"', $command::class));
     }
 
     /** @param array<string, DependencyFactory> $list */
@@ -87,8 +88,8 @@ trait DoctrineContextTrait
         $ui               = new SymfonyStyle($input, $output)->getErrorStyle();
         $contextIsolation = $input->getOption('ctx-isolation');
         while ($dependencyFactory = array_shift($list)) {
-            $contextName = array_search($dependencyFactory, $all) ?: null;
-            assert($contextName !== null);
+            $contextName = array_search($dependencyFactory, $all);
+            assert($contextName !== false);
             if (count($all) > 1) {
                 $ui->section(sprintf('%s: %s', $dependencyFactory->hasEntityManager() ? 'Entity Manager' : 'Connection', $contextName));
             }
@@ -116,10 +117,10 @@ trait DoctrineContextTrait
     /** @return array<string, DependencyFactory> */
     private function filterDoctrineContexts(callable|null $filter = null, string|null $targetEntityManager = null, string|null $targetConnectionName = null): array
     {
-        $targetEntityManager  = trim($targetEntityManager ?: '') ?: null;
-        $targetConnectionName = trim($targetConnectionName ?: '') ?: null;
+        $targetEntityManager  = trim($targetEntityManager ?? '') ?: null;
+        $targetConnectionName = trim($targetConnectionName ?? '') ?: null;
         if ($targetEntityManager !== null && $targetConnectionName !== null) {
-            throw new RuntimeException('You can specify only one of the --em and --conn options.');
+            throw new InvalidArgumentException('You can specify only one of the --em and --conn options.');
         }
 
         $contextName = $targetEntityManager ?: $targetConnectionName;
@@ -135,11 +136,11 @@ trait DoctrineContextTrait
         }
 
         if (count($list) === 0 && $targetEntityManager !== null) {
-            throw new RuntimeException(sprintf('Unknown doctrine entity manager "%s" or it\'s not registered as doctrine context.', $targetEntityManager));
+            throw new InvalidArgumentException(sprintf('Unknown doctrine entity manager "%s" or it\'s not registered as doctrine context.', $targetEntityManager));
         }
 
         if (count($list) === 0 && $targetConnectionName !== null) {
-            throw new RuntimeException(sprintf('Unknown doctrine connection "%s" or it\'s not registered as doctrine context.', $targetConnectionName));
+            throw new InvalidArgumentException(sprintf('Unknown doctrine connection "%s" or it\'s not registered as doctrine context.', $targetConnectionName));
         }
 
         asort($list);

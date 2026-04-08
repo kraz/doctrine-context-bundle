@@ -1,6 +1,6 @@
 <?xml version="1.0"?>
 <psalm
-    errorLevel="1"
+    errorLevel="2"
     checkForThrowsDocblock="true"
     resolveFromConfigFile="true"
     findUnusedCode="false"
@@ -26,6 +26,7 @@
     <issueHandlers>
         <MissingThrowsDocblock>
             <errorLevel type="suppress">
+                <directory name="src"/>
                 <directory name="tests"/>
             </errorLevel>
         </MissingThrowsDocblock>
@@ -36,11 +37,5 @@
                 <directory name="tests"/>
             </errorLevel>
         </ClassMustBeFinal>
-
-        <MissingOverrideAttribute>
-            <errorLevel type="suppress">
-                <directory name="tests"/>
-            </errorLevel>
-        </MissingOverrideAttribute>
     </issueHandlers>
 </psalm>
