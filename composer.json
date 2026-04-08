@@ -1,0 +1,51 @@
+{
+    "name": "kraz/doctrine-context-bundle",
+    "type": "symfony-bundle",
+    "description": "Symfony bundle for working with more than one doctrine entity manager or connection.",
+    "keywords": [
+        "symfony",
+        "doctrine",
+        "context",
+        "migrations"
+    ],
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "Krasen Borisov",
+            "email": "krasen.borisov@gmail.com"
+        }
+    ],
+    "require": {
+        "php": ">=8.4",
+        "doctrine/dbal": "^4.4",
+        "symfony/console": "^8.0"
+    },
+    "require-dev": {
+        "doctrine/coding-standard": "^13.0",
+        "doctrine/migrations": "^3.9",
+        "doctrine/orm": "^3.6",
+        "phpunit/phpunit": "^12.1",
+        "psalm/plugin-phpunit": "^0.19.5",
+        "psalm/plugin-symfony": "^5.2",
+        "symfony/framework-bundle": "^8.0",
+        "symfony/phpunit-bridge": "^8.0",
+        "vimeo/psalm": "^6"
+    },
+    "autoload": {
+        "psr-4": {
+            "Kraz\\DoctrineContextBundle\\": "src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Kraz\\DoctrineContextBundle\\Tests\\": "tests/"
+        }
+    },
+    "config": {
+        "sort-packages": true,
+        "allow-plugins": {
+            "dealerdirect/phpcodesniffer-composer-installer": true
+        }
+    },
+    "minimum-stability": "stable"
+}

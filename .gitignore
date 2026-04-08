@@ -1,0 +1,5 @@
+.phpunit.cache
+composer.lock
+config/reference.php
+var
+vendor
