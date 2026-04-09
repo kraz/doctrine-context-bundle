@@ -104,7 +104,7 @@ class DoctrineContextBundle extends AbstractBundle
                                     ->addDefaultsIfNotSet()
                                     ->info('The default metadata storage, implemented as a table in the database.')
                                     ->children()
-                                        ->scalarNode('table_name')->defaultValue('zzz_migrations')->cannotBeEmpty()->end()
+                                        ->scalarNode('table_name')->defaultValue('doctrine_migration_versions')->cannotBeEmpty()->end()
                                         ->scalarNode('version_column_name')->defaultValue(null)->end()
                                         ->scalarNode('version_column_length')->defaultValue(null)->end()
                                         ->scalarNode('executed_at_column_name')->defaultValue(null)->end()
