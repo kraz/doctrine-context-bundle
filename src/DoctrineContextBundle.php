@@ -169,6 +169,10 @@ class DoctrineContextBundle extends AbstractBundle
     {
         $container->import('../config/services.php');
 
+        if (interface_exists('Doctrine\ORM\EntityManagerInterface')) {
+            $container->import('../config/services_orm.php');
+        }
+
         $contexts = array_values(array_unique(array_merge(array_keys($config['entity_managers'] ?? []), array_keys($config['connections'] ?? []))));
         foreach ($contexts as $context) {
             $entityManagerContext = $config['entity_managers'][$context] ?? null;
@@ -176,6 +180,10 @@ class DoctrineContextBundle extends AbstractBundle
 
             if ($entityManagerContext !== null && $connectionContext !== null) {
                 throw new RuntimeException(sprintf('You can use either "entity_managers" or "connections" for doctrine context "%s", but not both!', $context));
+            }
+
+            if ($entityManagerContext !== null && ! interface_exists('Doctrine\ORM\EntityManagerInterface')) {
+                throw new RuntimeException(sprintf('Cannot configure entity manager context "%s": doctrine/orm is not installed.', $context));
             }
 
             $this->loadContextConfiguration($context, $entityManagerContext ?? $connectionContext, $builder, $entityManagerContext !== null);

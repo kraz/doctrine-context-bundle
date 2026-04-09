@@ -6,7 +6,6 @@ namespace Symfony\Component\DependencyInjection\Loader\Configurator;
 
 use Doctrine\Migrations\Configuration\Configuration as DoctrineMigrationsConfiguration;
 use Doctrine\Migrations\DependencyFactory;
-use Kraz\DoctrineContextBundle\Command\Doctrine\Mapping\InfoCommand;
 use Kraz\DoctrineContextBundle\Command\Doctrine\Migrations\CurrentCommand;
 use Kraz\DoctrineContextBundle\Command\Doctrine\Migrations\DiffCommand;
 use Kraz\DoctrineContextBundle\Command\Doctrine\Migrations\DumpSchemaCommand;
@@ -20,7 +19,6 @@ use Kraz\DoctrineContextBundle\Command\Doctrine\Migrations\StatusCommand;
 use Kraz\DoctrineContextBundle\Command\Doctrine\Migrations\SyncMetadataCommand;
 use Kraz\DoctrineContextBundle\Command\Doctrine\Migrations\UpToDateCommand;
 use Kraz\DoctrineContextBundle\Command\Doctrine\Migrations\VersionCommand;
-use Kraz\DoctrineContextBundle\Command\Doctrine\Schema\ValidateSchemaCommand;
 use Kraz\DoctrineContextBundle\Configuration\Configuration as DoctrineContextConfiguration;
 
 return static function (ContainerConfigurator $container): void {
@@ -137,21 +135,5 @@ return static function (ContainerConfigurator $container): void {
                 service('.inner'),
                 service('doctrine.doctrine_context.configuration'),
             ])
-            ->tag('console.command', ['command' => 'doctrine:migrations:version'])
-
-        ->set('doctrine.mapping_info_command.with_context', InfoCommand::class)
-            ->decorate('doctrine.mapping_info_command')
-            ->args([
-                service('.inner'),
-                service('doctrine.doctrine_context.configuration'),
-            ])
-            ->tag('console.command', ['command' => 'doctrine:mapping:info'])
-
-        ->set('doctrine.schema_validate_command.with_context', ValidateSchemaCommand::class)
-            ->decorate('doctrine.schema_validate_command')
-            ->args([
-                service('.inner'),
-                service('doctrine.doctrine_context.configuration'),
-            ])
-            ->tag('console.command', ['command' => 'doctrine:schema:validate']);
+            ->tag('console.command', ['command' => 'doctrine:migrations:version']);
 };

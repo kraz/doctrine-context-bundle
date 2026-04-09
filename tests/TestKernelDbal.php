@@ -19,7 +19,7 @@ use Symfony\Component\HttpKernel\Kernel;
 use function dirname;
 use function sys_get_temp_dir;
 
-class TestKernel extends Kernel implements CompilerPassInterface
+class TestKernelDbal extends Kernel implements CompilerPassInterface
 {
     use MicroKernelTrait;
 
@@ -56,59 +56,21 @@ class TestKernel extends Kernel implements CompilerPassInterface
                     'connections' => [
                         'default' => [
                             'driver' => 'pdo_sqlite',
-                            'path' => sys_get_temp_dir() . '/doctrine_context_test_default.db',
+                            'path' => sys_get_temp_dir() . '/doctrine_context_test_dbal_default.db',
                         ],
                         'alpha' => [
                             'driver' => 'pdo_sqlite',
-                            'path' => sys_get_temp_dir() . '/doctrine_context_test_alpha.db',
+                            'path' => sys_get_temp_dir() . '/doctrine_context_test_dbal_alpha.db',
                         ],
                         'beta' => [
                             'driver' => 'pdo_sqlite',
-                            'path' => sys_get_temp_dir() . '/doctrine_context_test_beta.db',
-                        ],
-                    ],
-                ],
-                'orm' => [
-                    'default_entity_manager' => 'default',
-                    'entity_managers' => [
-                        'default' => [
-                            'connection' => 'default',
-                            'mappings' => [
-                                'Default' => [
-                                    'is_bundle' => false,
-                                    'type' => 'attribute',
-                                    'dir' => __DIR__ . '/Fixtures/Entity/Default',
-                                    'prefix' => 'Kraz\DoctrineContextBundle\Tests\Fixtures\Entity\Default',
-                                ],
-                            ],
-                        ],
-                        'alpha' => [
-                            'connection' => 'alpha',
-                            'mappings' => [
-                                'ContextA' => [
-                                    'is_bundle' => false,
-                                    'type' => 'attribute',
-                                    'dir' => __DIR__ . '/Fixtures/Entity/ContextA',
-                                    'prefix' => 'Kraz\DoctrineContextBundle\Tests\Fixtures\Entity\ContextA',
-                                ],
-                            ],
-                        ],
-                        'beta' => [
-                            'connection' => 'beta',
-                            'mappings' => [
-                                'ContextB' => [
-                                    'is_bundle' => false,
-                                    'type' => 'attribute',
-                                    'dir' => __DIR__ . '/Fixtures/Entity/ContextB',
-                                    'prefix' => 'Kraz\DoctrineContextBundle\Tests\Fixtures\Entity\ContextB',
-                                ],
-                            ],
+                            'path' => sys_get_temp_dir() . '/doctrine_context_test_dbal_beta.db',
                         ],
                     ],
                 ],
             ]);
 
-            // doctrine_migrations base config targets the default connection/entity manager.
+            // doctrine_migrations base config targets the default connection.
             $container->loadFromExtension('doctrine_migrations', [
                 'migrations_paths' => [
                     'Kraz\DoctrineContextBundle\Tests\Fixtures\Migrations\Default' => __DIR__ . '/Fixtures/Migrations/Default',
@@ -118,10 +80,10 @@ class TestKernel extends Kernel implements CompilerPassInterface
                 ],
             ]);
 
-            // doctrine_context registers all three entity managers as named contexts,
+            // doctrine_context registers all three connections as named contexts,
             // including "default" so that context-aware commands iterate over all three.
             $container->loadFromExtension('doctrine_context', [
-                'entity_managers' => [
+                'connections' => [
                     'default' => [
                         'migrations_paths' => [
                             'Kraz\DoctrineContextBundle\Tests\Fixtures\Migrations\Default' => __DIR__ . '/Fixtures/Migrations/Default',
