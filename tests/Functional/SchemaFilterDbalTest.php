@@ -15,6 +15,7 @@ use Symfony\Component\Console\Output\BufferedOutput;
 use function array_column;
 use function file_exists;
 use function in_array;
+use function sprintf;
 use function sys_get_temp_dir;
 use function unlink;
 

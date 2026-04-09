@@ -15,7 +15,7 @@ use Symfony\Component\Console\Event\ConsoleCommandEvent;
 use Symfony\Component\Console\Input\ArrayInput;
 use Symfony\Component\Console\Output\NullOutput;
 
-use function class_exists;
+use function interface_exists;
 
 class SchemaFilterListenerTest extends TestCase
 {
