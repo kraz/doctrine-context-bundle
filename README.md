@@ -1,5 +1,9 @@
 # Doctrine Context Bundle
 
+[![CI](https://github.com/kraz/doctrine-context-bundle/actions/workflows/ci.yml/badge.svg)](https://github.com/kraz/doctrine-context-bundle/actions/workflows/ci.yml)
+[![Packagist Version](https://img.shields.io/packagist/v/kraz/doctrine-context-bundle)](https://packagist.org/packages/kraz/doctrine-context-bundle)
+[![GitHub license](https://img.shields.io/github/license/kraz/doctrine-context-bundle)](LICENSE)
+
 A Symfony bundle that makes working with multiple Doctrine entity managers or DBAL connections painless. It wraps the standard `doctrine/migrations` commands (and optionally ORM schema commands) so that a single command can target one specific context or fan out across all of them automatically.
 
 ## The problem
