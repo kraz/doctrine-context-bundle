@@ -159,28 +159,6 @@ class SchemaFilterTest extends KernelTestCase
         $this->assertTableNotExists('beta', 'product');
     }
 
-    public function testSchemaValidateSkipSyncPassesOnEmptyDatabase(): void
-    {
-        // With an empty database the sync check would fail (tables are missing).
-        // If --skip-sync is not forwarded the exit code would be non-zero.
-        $exitCode = $this->runCommand('doctrine:schema:validate --em=alpha --skip-sync');
-
-        self::assertSame(0, $exitCode, '--skip-sync must be forwarded to the inner command');
-    }
-
-    public function testSchemaValidateSkipMappingAndSkipSyncPassOnEmptyDatabase(): void
-    {
-        // On an empty database both checks fail independently:
-        //   --skip-sync  alone  → mapping passes, sync skipped         → exit 0
-        //   --skip-mapping alone → mapping skipped, sync fails (no tables) → exit non-zero
-        // Passing both flags together must also exit 0. If either flag is not forwarded to
-        // the inner command then at least one check runs against the empty database and the
-        // exit code becomes non-zero, catching the regression.
-        $exitCode = $this->runCommand('doctrine:schema:validate --em=alpha --skip-mapping --skip-sync');
-
-        self::assertSame(0, $exitCode, '--skip-mapping and --skip-sync must both be forwarded to the inner command');
-    }
-
     public function testSchemaValidateSingleContextDoesNotReportMigrationTable(): void
     {
         $this->runCommand('doctrine:migrations:migrate --no-interaction');

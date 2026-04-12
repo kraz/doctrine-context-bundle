@@ -17,6 +17,7 @@ use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\Console\Style\SymfonyStyle;
+use Throwable;
 
 use function array_filter;
 use function array_replace;
@@ -77,6 +78,26 @@ trait DoctrineContextTrait
             }, $list, $input, $output);
         }
 
+        if ($command->getNativeDefinition()->hasOption('connection')) {
+            $connectionOption = trim((string) ($input->getOption('connection') ?? ''));
+            $connOption       = trim((string) ($input->getOption('conn') ?? ''));
+
+            if ($connectionOption !== '' && $connOption !== '') {
+                throw new InvalidArgumentException('You can specify only one of the --connection and --conn options.');
+            }
+
+            $targetConnection = $connectionOption ?: ($connOption ?: null);
+            $list             = $this->filterDoctrineContexts(null, null, $targetConnection);
+
+            return $this->walkDoctrineContexts(function (InputInterface $input, OutputInterface $output, string $contextName) use ($command) {
+                $command->setDefinition($this->getNativeDefinition());
+                $command->setApplication($this->getApplication());
+                $newInput = $this->createNewInput($command, $input, ['--connection' => $contextName]);
+
+                return $command->run($newInput, $output);
+            }, $list, $input, $output);
+        }
+
         throw new InvalidArgumentException(sprintf('Unsupported CLI command "%s"', $command::class));
     }
 
@@ -94,7 +115,13 @@ trait DoctrineContextTrait
                 $ui->section(sprintf('%s: %s', $dependencyFactory->hasEntityManager() ? 'Entity Manager' : 'Connection', $contextName));
             }
 
-            $cmdResult = $callback($input, $output, $contextName, $dependencyFactory);
+            try {
+                $cmdResult = $callback($input, $output, $contextName, $dependencyFactory);
+            } catch (Throwable $e) {
+                $ui->error($e->getMessage());
+                $cmdResult = Command::FAILURE;
+            }
+
             if (count($all) > 1) {
                 $ui->newLine();
             }

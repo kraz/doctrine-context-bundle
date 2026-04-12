@@ -6,6 +6,7 @@ namespace Symfony\Component\DependencyInjection\Loader\Configurator;
 
 use Doctrine\Migrations\Configuration\Configuration as DoctrineMigrationsConfiguration;
 use Doctrine\Migrations\DependencyFactory;
+use Kraz\DoctrineContextBundle\Command\Doctrine\Database\CreateDatabaseCommand;
 use Kraz\DoctrineContextBundle\Command\Doctrine\Migrations\CurrentCommand;
 use Kraz\DoctrineContextBundle\Command\Doctrine\Migrations\DiffCommand;
 use Kraz\DoctrineContextBundle\Command\Doctrine\Migrations\DumpSchemaCommand;
@@ -20,6 +21,7 @@ use Kraz\DoctrineContextBundle\Command\Doctrine\Migrations\SyncMetadataCommand;
 use Kraz\DoctrineContextBundle\Command\Doctrine\Migrations\UpToDateCommand;
 use Kraz\DoctrineContextBundle\Command\Doctrine\Migrations\VersionCommand;
 use Kraz\DoctrineContextBundle\Configuration\Configuration as DoctrineContextConfiguration;
+use Symfony\Component\DependencyInjection\ContainerInterface;
 
 return static function (ContainerConfigurator $container): void {
     $container->services()
@@ -33,6 +35,14 @@ return static function (ContainerConfigurator $container): void {
             ->abstract()
 
         // Commands
+        ->set('doctrine.database_create_command.with_context', CreateDatabaseCommand::class)
+            ->decorate('doctrine.database_create_command', null, 0, ContainerInterface::IGNORE_ON_INVALID_REFERENCE)
+            ->args([
+                service('.inner'),
+                service('doctrine.doctrine_context.configuration'),
+            ])
+            ->tag('console.command', ['command' => 'doctrine:database:create'])
+
         ->set('doctrine_migrations.current_command.with_context', CurrentCommand::class)
             ->decorate('doctrine_migrations.current_command')
             ->args([
