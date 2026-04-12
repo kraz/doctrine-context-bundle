@@ -160,7 +160,7 @@ trait DoctrineContextTrait
         }
 
         foreach ($definition->getOptions() as $option) {
-            if ($input->hasParameterOption($option->getName())) {
+            if ($input->hasParameterOption('--' . $option->getName())) {
                 $parameters['--' . $option->getName()] = $input->getOption($option->getName());
             }
         }
