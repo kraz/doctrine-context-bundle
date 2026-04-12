@@ -7,23 +7,19 @@ namespace Kraz\DoctrineContextBundle\Tests\Functional;
 use Doctrine\DBAL\Connection;
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\Persistence\ManagerRegistry;
+use Kraz\DoctrineContextBundle\Tests\InspectsSqliteDatabasesTrait;
+use Kraz\DoctrineContextBundle\Tests\RunsConsoleCommandsTrait;
 use Kraz\DoctrineContextBundle\Tests\TestKernel;
 use Override;
 use Symfony\Bundle\FrameworkBundle\Console\Application;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
-use Symfony\Component\Console\Input\StringInput;
-use Symfony\Component\Console\Output\BufferedOutput;
 
-use function array_column;
-use function file_exists;
-use function in_array;
 use function interface_exists;
-use function sys_get_temp_dir;
-use function unlink;
 
 class SchemaFilterTest extends KernelTestCase
 {
-    private Application $application;
+    use RunsConsoleCommandsTrait;
+    use InspectsSqliteDatabasesTrait;
 
     #[Override]
     protected static function getKernelClass(): string
@@ -177,12 +173,8 @@ class SchemaFilterTest extends KernelTestCase
         self::assertSame(0, $exitCode, 'Schema validation for all contexts should succeed without reporting the migration table as unmanaged');
     }
 
-    private function runCommand(string $command): int
-    {
-        return $this->application->run(new StringInput($command), new BufferedOutput());
-    }
-
-    private function getConnection(string $name): Connection
+    #[Override]
+    protected function getConnection(string $name): Connection
     {
         $registry = self::getContainer()->get('doctrine');
         self::assertInstanceOf(ManagerRegistry::class, $registry);
@@ -191,56 +183,5 @@ class SchemaFilterTest extends KernelTestCase
         self::assertInstanceOf(Connection::class, $connection);
 
         return $connection;
-    }
-
-    /**
-     * Queries sqlite_master directly to bypass any active schema filters
-     * that would hide tables like the migration metadata table.
-     *
-     * @return list<string>
-     */
-    private function getTableNames(string $connectionName): array
-    {
-        $rows = $this->getConnection($connectionName)->fetchAllAssociative(
-            "SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%' ORDER BY name",
-        );
-
-        return array_column($rows, 'name');
-    }
-
-    private function assertTableExists(string $connectionName, string $tableName): void
-    {
-        self::assertTrue(
-            in_array($tableName, $this->getTableNames($connectionName), true),
-            'Table "' . $tableName . '" should exist in connection "' . $connectionName . '"',
-        );
-    }
-
-    private function assertTableNotExists(string $connectionName, string $tableName): void
-    {
-        self::assertFalse(
-            in_array($tableName, $this->getTableNames($connectionName), true),
-            'Table "' . $tableName . '" should NOT exist in connection "' . $connectionName . '"',
-        );
-    }
-
-    private function assertMigrationRecorded(string $connectionName, string $version): void
-    {
-        $count = $this->getConnection($connectionName)->fetchOne(
-            'SELECT COUNT(*) FROM zzz_migrations WHERE version = ?',
-            [$version],
-        );
-
-        self::assertGreaterThan(0, (int) $count, 'Migration "' . $version . '" should be recorded in connection "' . $connectionName . '"');
-    }
-
-    private function cleanDatabases(): void
-    {
-        foreach (['default', 'alpha', 'beta'] as $name) {
-            $path = sys_get_temp_dir() . '/doctrine_context_test_' . $name . '.db';
-            if (file_exists($path)) {
-                unlink($path);
-            }
-        }
     }
 }

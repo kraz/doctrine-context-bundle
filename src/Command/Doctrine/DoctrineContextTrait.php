@@ -79,8 +79,8 @@ trait DoctrineContextTrait
         }
 
         if ($command->getNativeDefinition()->hasOption('connection')) {
-            $connectionOption = trim((string) ($input->getOption('connection') ?? ''));
-            $connOption       = trim((string) ($input->getOption('conn') ?? ''));
+            $connectionOption = trim((string) $input->getOption('connection'));
+            $connOption       = trim((string) $input->getOption('conn'));
 
             if ($connectionOption !== '' && $connOption !== '') {
                 throw new InvalidArgumentException('You can specify only one of the --connection and --conn options.');
