@@ -21,7 +21,8 @@ There is also a subtle schema-pollution problem: after running migrations, `doct
 ## What this bundle does
 
 - **Context-aware commands**: every `doctrine:migrations:*` command gains `--em` and `--conn` options. Pass one to target a specific context, or omit both to run across all registered contexts in sequence.
-- **ORM command integration** *(requires `doctrine/orm`)*: `doctrine:schema:validate` and `doctrine:mapping:info` receive the same fan-out behaviour.
+- **ORM command integration** *(requires `doctrine/orm`)*: `doctrine:schema:create`, `doctrine:schema:validate`, and `doctrine:mapping:info` receive the same fan-out behaviour.
+- **Database command integration**: `doctrine:database:create` fans out across all registered contexts. Accepts both `--connection` (native option) and `--conn` (context-system alias).
 - **Schema filter**: automatically hides the migration metadata table from `doctrine:schema:update` and `doctrine:schema:validate`, so those commands never see it as unmanaged.
 - **`--ctx-isolation`**: an extra flag added to every wrapped command. When set, a failure in one context does not abort the remaining contexts.
 
@@ -170,6 +171,17 @@ By default, a failure in one context stops execution when executed in non-intera
 php bin/console doctrine:migrations:migrate --no-interaction --ctx-isolation
 ```
 
+### Create databases
+
+```bash
+# All contexts
+php bin/console doctrine:database:create
+
+# Specific context – both flags are equivalent
+php bin/console doctrine:database:create --connection=shop
+php bin/console doctrine:database:create --conn=shop
+```
+
 ### All supported commands
 
 Every `doctrine:migrations:*` command supports the context options:
@@ -190,10 +202,17 @@ Every `doctrine:migrations:*` command supports the context options:
 | `doctrine:migrations:dump-schema`           | Dump the schema for a mapping               |
 | `doctrine:migrations:sync-metadata-storage` | Sync the metadata storage                   |
 
+Always available:
+
+| Command                      | Description                                         |
+|------------------------------|-----------------------------------------------------|
+| `doctrine:database:create`   | Create the database for each registered context     |
+
 When `doctrine/orm` is installed and configured:
 
 | Command                    | Description                                  |
 |----------------------------|----------------------------------------------|
+| `doctrine:schema:create`   | Create schema across all entity managers     |
 | `doctrine:schema:validate` | Validate schema across all entity managers   |
 | `doctrine:mapping:info`    | Show mapping info across all entity managers |
 
