@@ -30,6 +30,7 @@ use function array_merge;
 use function array_unique;
 use function array_values;
 use function assert;
+use function class_exists;
 use function constant;
 use function count;
 use function explode;
@@ -51,111 +52,120 @@ class DoctrineContextBundle extends AbstractBundle
     #[Override]
     public function configure(DefinitionConfigurator $definition): void
     {
-        $organizeMigrationModes = $this->getOrganizeMigrationsModes();
-        $contextConfiguration   = static function (string $contextName) use ($organizeMigrationModes) {
-            $node =  new ArrayNodeDefinition($contextName);
-            $node
-                ->arrayPrototype()
-                    ->fixXmlConfig('migration', 'migrations')
-                    ->fixXmlConfig('migrations_path', 'migrations_paths')
-                    ->children()
-                        ->arrayNode('migrations_paths')
-                            ->info('A list of namespace/path pairs where to look for migrations.')
-                            ->defaultValue([])
-                            ->useAttributeAsKey('namespace')
-                            ->prototype('scalar')->end()
-                        ->end()
-
-                        ->arrayNode('services')
-                            ->info('A set of services to pass to the underlying doctrine/migrations library, allowing to change its behaviour.')
-                            ->useAttributeAsKey('service')
-                            ->defaultValue([])
-                            ->validate()
-                                ->ifTrue(static function ($v) {
-                                    return count(array_filter(array_keys($v), static function (string $doctrineService): bool {
-                                        return ! str_starts_with($doctrineService, 'Doctrine\Migrations\\');
-                                    }));
-                                })
-                                ->thenInvalid('Valid services for the DoctrineMigrationsBundle must be in the "Doctrine\Migrations" namespace.')
+        if (class_exists('Doctrine\Migrations\DependencyFactory')) {
+            $organizeMigrationModes = $this->getOrganizeMigrationsModes();
+            $contextConfiguration   = static function (string $contextName) use ($organizeMigrationModes) {
+                $node = new ArrayNodeDefinition($contextName);
+                $node
+                    ->arrayPrototype()
+                        ->fixXmlConfig('migration', 'migrations')
+                        ->fixXmlConfig('migrations_path', 'migrations_paths')
+                        ->children()
+                            ->arrayNode('migrations_paths')
+                                ->info('A list of namespace/path pairs where to look for migrations.')
+                                ->defaultValue([])
+                                ->useAttributeAsKey('namespace')
+                                ->prototype('scalar')->end()
                             ->end()
-                            ->prototype('scalar')->end()
-                        ->end()
 
-                        ->arrayNode('factories')
-                            ->info('A set of callables to pass to the underlying doctrine/migrations library as services, allowing to change its behaviour.')
-                            ->useAttributeAsKey('factory')
-                            ->defaultValue([])
-                            ->validate()
-                                ->ifTrue(static function ($v) {
-                                    return count(array_filter(array_keys($v), static function (string $doctrineService): bool {
-                                        return ! str_starts_with($doctrineService, 'Doctrine\Migrations\\');
-                                    }));
-                                })
-                                ->thenInvalid('Valid callables for the DoctrineMigrationsBundle must be in the "Doctrine\Migrations" namespace.')
+                            ->arrayNode('services')
+                                ->info('A set of services to pass to the underlying doctrine/migrations library, allowing to change its behaviour.')
+                                ->useAttributeAsKey('service')
+                                ->defaultValue([])
+                                ->validate()
+                                    ->ifTrue(static function ($v) {
+                                        return count(array_filter(array_keys($v), static function (string $doctrineService): bool {
+                                            return ! str_starts_with($doctrineService, 'Doctrine\Migrations\\');
+                                        }));
+                                    })
+                                    ->thenInvalid('Valid services for the DoctrineMigrationsBundle must be in the "Doctrine\Migrations" namespace.')
+                                ->end()
+                                ->prototype('scalar')->end()
                             ->end()
-                            ->prototype('scalar')->end()
-                        ->end()
 
-                        ->arrayNode('storage')
-                            ->addDefaultsIfNotSet()
-                            ->info('Storage to use for migration status metadata.')
-                            ->children()
-                                ->arrayNode('table_storage')
-                                    ->addDefaultsIfNotSet()
-                                    ->info('The default metadata storage, implemented as a table in the database.')
-                                    ->children()
-                                        ->scalarNode('table_name')->defaultValue('doctrine_migration_versions')->cannotBeEmpty()->end()
-                                        ->scalarNode('version_column_name')->defaultValue(null)->end()
-                                        ->scalarNode('version_column_length')->defaultValue(null)->end()
-                                        ->scalarNode('executed_at_column_name')->defaultValue(null)->end()
-                                        ->scalarNode('execution_time_column_name')->defaultValue(null)->end()
+                            ->arrayNode('factories')
+                                ->info('A set of callables to pass to the underlying doctrine/migrations library as services, allowing to change its behaviour.')
+                                ->useAttributeAsKey('factory')
+                                ->defaultValue([])
+                                ->validate()
+                                    ->ifTrue(static function ($v) {
+                                        return count(array_filter(array_keys($v), static function (string $doctrineService): bool {
+                                            return ! str_starts_with($doctrineService, 'Doctrine\Migrations\\');
+                                        }));
+                                    })
+                                    ->thenInvalid('Valid callables for the DoctrineMigrationsBundle must be in the "Doctrine\Migrations" namespace.')
+                                ->end()
+                                ->prototype('scalar')->end()
+                            ->end()
+
+                            ->arrayNode('storage')
+                                ->addDefaultsIfNotSet()
+                                ->info('Storage to use for migration status metadata.')
+                                ->children()
+                                    ->arrayNode('table_storage')
+                                        ->addDefaultsIfNotSet()
+                                        ->info('The default metadata storage, implemented as a table in the database.')
+                                        ->children()
+                                            ->scalarNode('table_name')->defaultValue('doctrine_migration_versions')->cannotBeEmpty()->end()
+                                            ->scalarNode('version_column_name')->defaultValue(null)->end()
+                                            ->scalarNode('version_column_length')->defaultValue(null)->end()
+                                            ->scalarNode('executed_at_column_name')->defaultValue(null)->end()
+                                            ->scalarNode('execution_time_column_name')->defaultValue(null)->end()
+                                        ->end()
                                     ->end()
                                 ->end()
                             ->end()
-                        ->end()
 
-                        ->arrayNode('migrations')
-                            ->info('A list of migrations to load in addition to the one discovered via "migrations_paths".')
-                            ->prototype('scalar')->end()
-                            ->defaultValue([])
-                        ->end()
-                        ->scalarNode('all_or_nothing')
-                            ->info('Run all migrations in a transaction.')
-                            ->defaultValue(false)
-                        ->end()
-                        ->scalarNode('check_database_platform')
-                            ->info('Adds an extra check in the generated migrations to allow execution only on the same platform as they were initially generated on.')
-                            ->defaultValue(true)
-                        ->end()
-                        ->scalarNode('custom_template')
-                            ->info('Custom template path for generated migration classes.')
-                            ->defaultValue(null)
-                        ->end()
-                        ->scalarNode('organize_migrations')
-                            ->defaultValue(false)
-                            ->info('Organize migrations mode. Possible values are: "BY_YEAR", "BY_YEAR_AND_MONTH", false')
-                            ->validate()
-                                ->ifTrue(static function ($v) use ($organizeMigrationModes): bool {
-                                    if ($v === false) {
-                                        return false;
-                                    }
-
-                                    return ! is_string($v) || ! in_array(strtoupper($v), $organizeMigrationModes, true);
-                                })
-                                ->thenInvalid('Invalid organize migrations mode value %s')
+                            ->arrayNode('migrations')
+                                ->info('A list of migrations to load in addition to the one discovered via "migrations_paths".')
+                                ->prototype('scalar')->end()
+                                ->defaultValue([])
                             ->end()
-                            ->validate()
-                                ->ifString()
-                                    ->then(static function ($v) {
-                                        return constant('Doctrine\Migrations\Configuration\Configuration::VERSIONS_ORGANIZATION_' . strtoupper($v));
+                            ->scalarNode('all_or_nothing')
+                                ->info('Run all migrations in a transaction.')
+                                ->defaultValue(false)
+                            ->end()
+                            ->scalarNode('check_database_platform')
+                                ->info('Adds an extra check in the generated migrations to allow execution only on the same platform as they were initially generated on.')
+                                ->defaultValue(true)
+                            ->end()
+                            ->scalarNode('custom_template')
+                                ->info('Custom template path for generated migration classes.')
+                                ->defaultValue(null)
+                            ->end()
+                            ->scalarNode('organize_migrations')
+                                ->defaultValue(false)
+                                ->info('Organize migrations mode. Possible values are: "BY_YEAR", "BY_YEAR_AND_MONTH", false')
+                                ->validate()
+                                    ->ifTrue(static function ($v) use ($organizeMigrationModes): bool {
+                                        if ($v === false) {
+                                            return false;
+                                        }
+
+                                        return ! is_string($v) || ! in_array(strtoupper($v), $organizeMigrationModes, true);
                                     })
+                                    ->thenInvalid('Invalid organize migrations mode value %s')
+                                ->end()
+                                ->validate()
+                                    ->ifString()
+                                        ->then(static function ($v) {
+                                            return constant('Doctrine\Migrations\Configuration\Configuration::VERSIONS_ORGANIZATION_' . strtoupper($v));
+                                        })
+                                ->end()
                             ->end()
                         ->end()
-                    ->end()
-                ->end();
+                    ->end();
 
-            return $node;
-        };
+                return $node;
+            };
+        } else {
+            $contextConfiguration = static function (string $contextName) {
+                $node = new ArrayNodeDefinition($contextName);
+                $node->arrayPrototype()->end();
+
+                return $node;
+            };
+        }
 
         $definition->rootNode()
             ->children()
@@ -169,6 +179,10 @@ class DoctrineContextBundle extends AbstractBundle
     public function loadExtension(array $config, ContainerConfigurator $container, ContainerBuilder $builder): void
     {
         $container->import('../config/services.php');
+
+        if (class_exists('Doctrine\Migrations\DependencyFactory')) {
+            $container->import('../config/services_migrations.php');
+        }
 
         if (interface_exists('Doctrine\ORM\EntityManagerInterface')) {
             $container->import('../config/services_orm.php');
@@ -194,6 +208,14 @@ class DoctrineContextBundle extends AbstractBundle
     /** @param array<string, mixed> $config */
     private function loadContextConfiguration(string $name, array $config, ContainerBuilder $builder, bool $isEntityManager): void
     {
+        $builder
+            ->getDefinition('doctrine.doctrine_context.configuration')
+            ->addMethodCall('registerContext', [$name, $isEntityManager]);
+
+        if (! class_exists(DependencyFactory::class)) {
+            return;
+        }
+
         if (! isset($config['services'][MetadataStorage::class])) {
             $schemaFilterDefinition = $builder->setDefinition(sprintf('doctrine.doctrine_context.%s_events_listener.schema_filter', $name), new Definition(SchemaFilterListener::class));
             $schemaFilterDefinition

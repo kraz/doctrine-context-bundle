@@ -10,11 +10,22 @@ use function array_keys;
 
 class Configuration
 {
+    /** @var array<string, bool> context name => isEntityManager */
+    private array $contexts = [];
+
     /** @var array<string, DependencyFactory> */
     private array $dependencyFactories = [];
 
+    public function registerContext(string $contextName, bool $isEntityManager): self
+    {
+        $this->contexts[$contextName] = $isEntityManager;
+
+        return $this;
+    }
+
     public function addDependencyFactory(string $contextName, DependencyFactory $dependencyFactory): self
     {
+        $this->contexts[$contextName]            = $dependencyFactory->hasEntityManager();
         $this->dependencyFactories[$contextName] = $dependencyFactory;
 
         return $this;
@@ -29,7 +40,12 @@ class Configuration
     /** @return string[] */
     public function getContextNames(): array
     {
-        return array_keys($this->dependencyFactories);
+        return array_keys($this->contexts);
+    }
+
+    public function isEntityManager(string $contextName): bool
+    {
+        return $this->contexts[$contextName] ?? false;
     }
 
     public function findDependencyFactory(string $contextName): DependencyFactory|null

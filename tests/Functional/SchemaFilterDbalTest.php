@@ -7,7 +7,7 @@ namespace Kraz\DoctrineContextBundle\Tests\Functional;
 use Doctrine\DBAL\Connection;
 use Kraz\DoctrineContextBundle\Tests\InspectsSqliteDatabasesTrait;
 use Kraz\DoctrineContextBundle\Tests\RunsConsoleCommandsTrait;
-use Kraz\DoctrineContextBundle\Tests\TestKernelDbal;
+use Kraz\DoctrineContextBundle\Tests\TestKernelMigrationsOnly;
 use Override;
 use Symfony\Bundle\FrameworkBundle\Console\Application;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
@@ -22,7 +22,7 @@ class SchemaFilterDbalTest extends KernelTestCase
     #[Override]
     protected static function getKernelClass(): string
     {
-        return TestKernelDbal::class;
+        return TestKernelMigrationsOnly::class;
     }
 
     #[Override]

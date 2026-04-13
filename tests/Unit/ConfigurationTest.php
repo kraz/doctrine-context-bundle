@@ -47,4 +47,53 @@ class ConfigurationTest extends TestCase
 
         self::assertNull($configuration->findDependencyFactory('nonexistent'));
     }
+
+    public function testRegisterContextTracksNameWithoutDependencyFactory(): void
+    {
+        $configuration = new Configuration();
+        $configuration->registerContext('alpha', false);
+        $configuration->registerContext('beta', true);
+
+        self::assertSame(['alpha', 'beta'], $configuration->getContextNames());
+        self::assertEmpty($configuration->getDependencyFactories());
+    }
+
+    public function testIsEntityManagerReturnsTrueForEntityManagerContext(): void
+    {
+        $configuration = new Configuration();
+        $configuration->registerContext('alpha', true);
+        $configuration->registerContext('beta', false);
+
+        self::assertTrue($configuration->isEntityManager('alpha'));
+        self::assertFalse($configuration->isEntityManager('beta'));
+    }
+
+    public function testIsEntityManagerReturnsFalseForUnknownContext(): void
+    {
+        $configuration = new Configuration();
+
+        self::assertFalse($configuration->isEntityManager('unknown'));
+    }
+
+    public function testAddDependencyFactoryAlsoRegistersContext(): void
+    {
+        $configuration = new Configuration();
+        $factory       = $this->createStub(DependencyFactory::class);
+
+        $configuration->addDependencyFactory('alpha', $factory);
+
+        self::assertSame(['alpha'], $configuration->getContextNames());
+    }
+
+    public function testGetContextNamesIncludesContextsRegisteredWithoutDependencyFactory(): void
+    {
+        $configuration = new Configuration();
+        $factory       = $this->createStub(DependencyFactory::class);
+
+        $configuration->registerContext('alpha', false);
+        $configuration->addDependencyFactory('beta', $factory);
+
+        self::assertSame(['alpha', 'beta'], $configuration->getContextNames());
+        self::assertSame(['beta' => $factory], $configuration->getDependencyFactories());
+    }
 }

@@ -17,8 +17,7 @@
     ],
     "require": {
         "php": ">=8.4",
-        "doctrine/dbal": "^4.4",
-        "symfony/console": "^8.0"
+        "doctrine/doctrine-bundle": "^3.2"
     },
     "require-dev": {
         "doctrine/coding-standard": "^13.0",
