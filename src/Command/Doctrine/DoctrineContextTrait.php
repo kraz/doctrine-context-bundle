@@ -19,13 +19,14 @@ use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\Console\Style\SymfonyStyle;
 use Throwable;
 
-use function array_filter;
 use function array_key_first;
 use function array_replace;
 use function array_shift;
 use function assert;
+use function call_user_func;
 use function count;
 use function in_array;
+use function is_string;
 use function ksort;
 use function sprintf;
 use function trim;
@@ -56,7 +57,7 @@ trait DoctrineContextTrait
         assert($this instanceof Command);
 
         if ($command instanceof AbstractEntityManagerCommand) {
-            $list = $this->filterDoctrineContexts(static fn (DependencyFactory $dependencyFactory) => $dependencyFactory->hasEntityManager(), (string) $input->getOption('em'));
+            $list = $this->filterDoctrineContexts(fn (DependencyFactory|string $ctx): bool => is_string($ctx) ? $this->configuration->isEntityManager($ctx) : $ctx->hasEntityManager(), (string) $input->getOption('em'));
 
             return $this->walkDoctrineContexts(function (InputInterface $input, OutputInterface $output, string $em) use ($command) {
                 $command->setDefinition($this->getNativeDefinition());
@@ -110,7 +111,7 @@ trait DoctrineContextTrait
         $contextIsolation = $input->getOption('ctx-isolation');
         $total            = count($list);
         while (count($list) > 0) {
-            $contextName       = (string) array_key_first($list);
+            $contextName       = array_key_first($list);
             $dependencyFactory = array_shift($list);
             if ($total > 1) {
                 $ui->section(sprintf('%s: %s', $this->configuration->isEntityManager($contextName) ? 'Entity Manager' : 'Connection', $contextName));
@@ -142,7 +143,11 @@ trait DoctrineContextTrait
         return $result;
     }
 
-    /** @return array<string, DependencyFactory|null> */
+    /**
+     * @param callable(DependencyFactory|string): bool|null $filter
+     *
+     * @return array<string, DependencyFactory|null>
+     */
     private function filterDoctrineContexts(callable|null $filter = null, string|null $targetEntityManager = null, string|null $targetConnectionName = null): array
     {
         $targetEntityManager  = trim($targetEntityManager ?? '') ?: null;
@@ -171,7 +176,16 @@ trait DoctrineContextTrait
         }
 
         if ($filter !== null) {
-            $list = array_filter($list, static fn ($df) => $df !== null && $filter($df));
+            $filteredList = [];
+            foreach ($list as $contextName => $dependencyFactory) {
+                if (! call_user_func($filter, $dependencyFactory ?? $contextName)) {
+                    continue;
+                }
+
+                $filteredList[$contextName] = $dependencyFactory;
+            }
+
+            $list = $filteredList;
         }
 
         if (count($list) === 0 && $targetEntityManager !== null) {
