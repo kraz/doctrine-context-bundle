@@ -20,12 +20,13 @@ use Symfony\Component\Console\Style\SymfonyStyle;
 use Throwable;
 
 use function array_filter;
+use function array_key_first;
 use function array_replace;
-use function array_search;
 use function array_shift;
-use function asort;
 use function assert;
 use function count;
+use function in_array;
+use function ksort;
 use function sprintf;
 use function trim;
 
@@ -101,18 +102,18 @@ trait DoctrineContextTrait
         throw new InvalidArgumentException(sprintf('Unsupported CLI command "%s"', $command::class));
     }
 
-    /** @param array<string, DependencyFactory> $list */
+    /** @param array<string, DependencyFactory|null> $list */
     private function walkDoctrineContexts(callable $callback, array $list, InputInterface $input, OutputInterface $output): int
     {
-        $all              = $list;
         $result           = Command::SUCCESS;
         $ui               = new SymfonyStyle($input, $output)->getErrorStyle();
         $contextIsolation = $input->getOption('ctx-isolation');
-        while ($dependencyFactory = array_shift($list)) {
-            $contextName = array_search($dependencyFactory, $all);
-            assert($contextName !== false);
-            if (count($all) > 1) {
-                $ui->section(sprintf('%s: %s', $dependencyFactory->hasEntityManager() ? 'Entity Manager' : 'Connection', $contextName));
+        $total            = count($list);
+        while (count($list) > 0) {
+            $contextName       = (string) array_key_first($list);
+            $dependencyFactory = array_shift($list);
+            if ($total > 1) {
+                $ui->section(sprintf('%s: %s', $this->configuration->isEntityManager($contextName) ? 'Entity Manager' : 'Connection', $contextName));
             }
 
             try {
@@ -122,7 +123,7 @@ trait DoctrineContextTrait
                 $cmdResult = Command::FAILURE;
             }
 
-            if (count($all) > 1) {
+            if ($total > 1) {
                 $ui->newLine();
             }
 
@@ -141,7 +142,7 @@ trait DoctrineContextTrait
         return $result;
     }
 
-    /** @return array<string, DependencyFactory> */
+    /** @return array<string, DependencyFactory|null> */
     private function filterDoctrineContexts(callable|null $filter = null, string|null $targetEntityManager = null, string|null $targetConnectionName = null): array
     {
         $targetEntityManager  = trim($targetEntityManager ?? '') ?: null;
@@ -153,13 +154,24 @@ trait DoctrineContextTrait
         $contextName = $targetEntityManager ?: $targetConnectionName;
         if ($contextName !== null) {
             $dependencyFactory = $this->configuration->findDependencyFactory($contextName);
-            $list              = $dependencyFactory !== null ? [$contextName => $dependencyFactory] : [];
+            if ($dependencyFactory !== null) {
+                $list = [$contextName => $dependencyFactory];
+            } elseif (in_array($contextName, $this->configuration->getContextNames(), true)) {
+                $list = [$contextName => null];
+            } else {
+                $list = [];
+            }
         } else {
             $list = $this->configuration->getDependencyFactories();
+            foreach ($this->configuration->getContextNames() as $name) {
+                if (! isset($list[$name])) {
+                    $list[$name] = null;
+                }
+            }
         }
 
         if ($filter !== null) {
-            $list = array_filter($list, $filter);
+            $list = array_filter($list, static fn ($df) => $df !== null && $filter($df));
         }
 
         if (count($list) === 0 && $targetEntityManager !== null) {
@@ -170,7 +182,7 @@ trait DoctrineContextTrait
             throw new InvalidArgumentException(sprintf('Unknown doctrine connection "%s" or it\'s not registered as doctrine context.', $targetConnectionName));
         }
 
-        asort($list);
+        ksort($list);
 
         return $list;
     }
