@@ -4,14 +4,11 @@ declare(strict_types=1);
 
 namespace Kraz\DoctrineContextBundle\Tests\Functional;
 
-use Doctrine\ORM\EntityManagerInterface;
 use Kraz\DoctrineContextBundle\Tests\RunsConsoleCommandsTrait;
-use Kraz\DoctrineContextBundle\Tests\TestKernel;
+use Kraz\DoctrineContextBundle\Tests\TestKernelOrmOnly;
 use Override;
 use Symfony\Bundle\FrameworkBundle\Console\Application;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
-
-use function interface_exists;
 
 class SchemaValidateTest extends KernelTestCase
 {
@@ -20,16 +17,12 @@ class SchemaValidateTest extends KernelTestCase
     #[Override]
     protected static function getKernelClass(): string
     {
-        return TestKernel::class;
+        return TestKernelOrmOnly::class;
     }
 
     #[Override]
     protected function setUp(): void
     {
-        if (! interface_exists(EntityManagerInterface::class)) {
-            $this->markTestSkipped('doctrine/orm is not installed');
-        }
-
         $this->cleanDatabases();
 
         $kernel            = self::bootKernel();
@@ -43,6 +36,11 @@ class SchemaValidateTest extends KernelTestCase
         parent::tearDown();
 
         $this->cleanDatabases();
+    }
+
+    protected function databaseFilePrefix(): string
+    {
+        return 'doctrine_context_test_ormonly_';
     }
 
     public function testHelpListsStandardApplicationOptions(): void

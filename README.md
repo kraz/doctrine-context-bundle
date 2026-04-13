@@ -4,11 +4,11 @@
 [![Packagist Version](https://img.shields.io/packagist/v/kraz/doctrine-context-bundle)](https://packagist.org/packages/kraz/doctrine-context-bundle)
 [![GitHub license](https://img.shields.io/github/license/kraz/doctrine-context-bundle)](LICENSE)
 
-A Symfony bundle that makes working with multiple Doctrine entity managers or DBAL connections painless. It wraps the standard `doctrine/migrations` commands (and optionally ORM schema commands) so that a single command can target one specific context or fan out across all of them automatically.
+A Symfony bundle that makes working with multiple Doctrine entity managers or DBAL connections painless. It wraps the standard Doctrine commands so that a single command can target one specific context or fan out across all of them automatically. The only hard dependency is `doctrine/dbal` — ORM and Migrations support are both optional.
 
 ## The problem
 
-When a project has more than one entity manager or DBAL connection, running migrations requires repeating the same command once per context, which requires each time specifying the right `--em` or `--conn` flag manually:
+When a project has more than one entity manager or DBAL connection, running the same operation across all of them requires repeating the command manually once per context:
 
 ```bash
 php bin/console doctrine:migrations:migrate --em=shop
@@ -20,21 +20,20 @@ There is also a subtle schema-pollution problem: after running migrations, `doct
 
 ## What this bundle does
 
-- **Context-aware commands**: every `doctrine:migrations:*` command gains `--em` and `--conn` options. Pass one to target a specific context, or omit both to run across all registered contexts in sequence.
+- **Database command integration**: `doctrine:database:create` fans out across all registered contexts. Works with DBAL alone — no ORM or Migrations required. Accepts both `--connection` (native option) and `--conn` (context-system alias).
+- **Migrations command integration** *(requires `doctrine/doctrine-migrations-bundle`)*: every `doctrine:migrations:*` command gains `--em` and `--conn` options. Pass one to target a specific context, or omit both to run across all registered contexts in sequence.
 - **ORM command integration** *(requires `doctrine/orm`)*: `doctrine:schema:create`, `doctrine:schema:validate`, and `doctrine:mapping:info` receive the same fan-out behaviour.
-- **Database command integration**: `doctrine:database:create` fans out across all registered contexts. Accepts both `--connection` (native option) and `--conn` (context-system alias).
 - **Schema filter**: automatically hides the migration metadata table from `doctrine:schema:update` and `doctrine:schema:validate`, so those commands never see it as unmanaged.
 - **`--ctx-isolation`**: an extra flag added to every wrapped command. When set, a failure in one context does not abort the remaining contexts.
 
 ## Requirements
 
-| Dependency                            | Version             |
-|---------------------------------------|---------------------|
-| PHP                                   | `>= 8.4`            |
-| `doctrine/dbal`                       | `^4.4`              |
-| `symfony/console`                     | `^8.0`              |
-| `doctrine/doctrine-migrations-bundle` | `^4.0` *(dev)*      |
-| `doctrine/orm`                        | `^3.6` *(optional)* |
+| Dependency                            | Version              |
+|---------------------------------------|----------------------|
+| PHP                                   | `>= 8.4`             |
+| `doctrine/doctrine-bundle`            | `^3.2`               |
+| `doctrine/doctrine-migrations-bundle` | `^4.0` *(optional)*  |
+| `doctrine/orm`                        | `^3.6` *(optional)*  |
 
 ## Installation
 
@@ -53,12 +52,43 @@ return [
 
 ## Configuration
 
-Register each entity manager or connection that should be treated as a named context. You may use `entity_managers` (requires `doctrine/orm`), `connections`, or a mix, but not both for the same name.
+Register each entity manager or connection that should be treated as a named context. You may use `entity_managers` (requires `doctrine/orm`) or `connections`, but not both for the same name.
 
-### With entity managers
+The migration-related options (`migrations_paths`, `storage`, `services`, etc.) are only available when `doctrine/doctrine-migrations-bundle` is installed. Without it, a context is configured with just its name.
+
+### DBAL only (no ORM, no Migrations)
 
 ```yaml
 # config/packages/doctrine_context.yaml
+doctrine_context:
+    connections:
+        default: ~
+        shop: ~
+        analytics: ~
+```
+
+### With DBAL connections and Migrations
+
+```yaml
+doctrine_context:
+    connections:
+        default:
+            migrations_paths:
+                App\Migrations\Default: '%kernel.project_dir%/migrations/default'
+            storage:
+                table_storage:
+                    table_name: doctrine_migration_versions
+        shop:
+            migrations_paths:
+                App\Migrations\Shop: '%kernel.project_dir%/migrations/shop'
+            storage:
+                table_storage:
+                    table_name: doctrine_migration_versions
+```
+
+### With entity managers (ORM) and Migrations
+
+```yaml
 doctrine_context:
     entity_managers:
         default:
@@ -81,23 +111,19 @@ doctrine_context:
                     table_name: doctrine_migration_versions
 ```
 
-### With DBAL connections only
+### With entity managers (ORM), no Migrations
 
 ```yaml
 doctrine_context:
-    connections:
-        default:
-            migrations_paths:
-                App\Migrations\Default: '%kernel.project_dir%/migrations/default'
-            storage:
-                table_storage:
-                    table_name: doctrine_migration_versions
-        shop:
-            migrations_paths:
-                App\Migrations\Shop: '%kernel.project_dir%/migrations/shop'
+    entity_managers:
+        default: ~
+        shop: ~
+        analytics: ~
 ```
 
 ### Full configuration reference
+
+The migration-related keys below are only accepted when `doctrine/doctrine-migrations-bundle` is installed.
 
 ```yaml
 doctrine_context:
@@ -184,7 +210,13 @@ php bin/console doctrine:database:create --conn=shop
 
 ### All supported commands
 
-Every `doctrine:migrations:*` command supports the context options:
+Always available (DBAL only):
+
+| Command                      | Description                                         |
+|------------------------------|-----------------------------------------------------|
+| `doctrine:database:create`   | Create the database for each registered context     |
+
+When `doctrine/doctrine-migrations-bundle` is installed:
 
 | Command                                     | Description                                 |
 |---------------------------------------------|---------------------------------------------|
@@ -202,13 +234,7 @@ Every `doctrine:migrations:*` command supports the context options:
 | `doctrine:migrations:dump-schema`           | Dump the schema for a mapping               |
 | `doctrine:migrations:sync-metadata-storage` | Sync the metadata storage                   |
 
-Always available:
-
-| Command                      | Description                                         |
-|------------------------------|-----------------------------------------------------|
-| `doctrine:database:create`   | Create the database for each registered context     |
-
-When `doctrine/orm` is installed and configured:
+When `doctrine/orm` is installed:
 
 | Command                    | Description                                  |
 |----------------------------|----------------------------------------------|
@@ -218,7 +244,7 @@ When `doctrine/orm` is installed and configured:
 
 ### Schema filter
 
-The bundle automatically registers a DBAL schema filter per context that hides the migration metadata table from `doctrine:schema:update` and `doctrine:schema:validate`. This prevents those commands from flagging the migration table as an unmanaged or extra table.
+When `doctrine/doctrine-migrations-bundle` is installed, the bundle automatically registers a DBAL schema filter per context that hides the migration metadata table from `doctrine:schema:update` and `doctrine:schema:validate`. This prevents those commands from flagging the migration table as an unmanaged or extra table.
 
 The filter activates only during schema update/validate commands and is otherwise transparent.
 

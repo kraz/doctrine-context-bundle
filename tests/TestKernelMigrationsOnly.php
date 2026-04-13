@@ -19,7 +19,7 @@ use Symfony\Component\HttpKernel\Kernel;
 use function dirname;
 use function sys_get_temp_dir;
 
-class TestKernelDbal extends Kernel implements CompilerPassInterface
+class TestKernelMigrationsOnly extends Kernel implements CompilerPassInterface
 {
     use MicroKernelTrait;
 

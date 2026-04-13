@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Kraz\DoctrineContextBundle\Tests\Functional;
 
 use Doctrine\DBAL\Connection;
-use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\Persistence\ManagerRegistry;
 use Kraz\DoctrineContextBundle\Tests\InspectsSqliteDatabasesTrait;
 use Kraz\DoctrineContextBundle\Tests\RunsConsoleCommandsTrait;
@@ -13,8 +12,6 @@ use Kraz\DoctrineContextBundle\Tests\TestKernel;
 use Override;
 use Symfony\Bundle\FrameworkBundle\Console\Application;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
-
-use function interface_exists;
 
 class SchemaFilterTest extends KernelTestCase
 {
@@ -30,10 +27,6 @@ class SchemaFilterTest extends KernelTestCase
     #[Override]
     protected function setUp(): void
     {
-        if (! interface_exists(EntityManagerInterface::class)) {
-            $this->markTestSkipped('doctrine/orm is not installed');
-        }
-
         $this->cleanDatabases();
 
         $kernel            = self::bootKernel();

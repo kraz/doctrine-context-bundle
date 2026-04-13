@@ -19,6 +19,7 @@ use Kraz\DoctrineContextBundle\Command\Doctrine\Migrations\StatusCommand;
 use Kraz\DoctrineContextBundle\Command\Doctrine\Migrations\SyncMetadataCommand;
 use Kraz\DoctrineContextBundle\Command\Doctrine\Migrations\UpToDateCommand;
 use Kraz\DoctrineContextBundle\Command\Doctrine\Migrations\VersionCommand;
+use Symfony\Component\DependencyInjection\ContainerInterface;
 
 return static function (ContainerConfigurator $container): void {
     $container->services()
@@ -29,7 +30,7 @@ return static function (ContainerConfigurator $container): void {
             ->abstract()
 
         ->set('doctrine_migrations.current_command.with_context', CurrentCommand::class)
-            ->decorate('doctrine_migrations.current_command')
+            ->decorate('doctrine_migrations.current_command', null, 0, ContainerInterface::IGNORE_ON_INVALID_REFERENCE)
             ->args([
                 service('.inner'),
                 service('doctrine.doctrine_context.configuration'),
@@ -37,7 +38,7 @@ return static function (ContainerConfigurator $container): void {
             ->tag('console.command', ['command' => 'doctrine:migrations:current'])
 
         ->set('doctrine_migrations.diff_command.with_context', DiffCommand::class)
-            ->decorate('doctrine_migrations.diff_command')
+            ->decorate('doctrine_migrations.diff_command', null, 0, ContainerInterface::IGNORE_ON_INVALID_REFERENCE)
             ->args([
                 service('.inner'),
                 service('doctrine.doctrine_context.configuration'),
@@ -45,7 +46,7 @@ return static function (ContainerConfigurator $container): void {
             ->tag('console.command', ['command' => 'doctrine:migrations:diff'])
 
         ->set('doctrine_migrations.dump_schema_command.with_context', DumpSchemaCommand::class)
-            ->decorate('doctrine_migrations.dump_schema_command')
+            ->decorate('doctrine_migrations.dump_schema_command', null, 0, ContainerInterface::IGNORE_ON_INVALID_REFERENCE)
             ->args([
                 service('.inner'),
                 service('doctrine.doctrine_context.configuration'),
@@ -53,7 +54,7 @@ return static function (ContainerConfigurator $container): void {
             ->tag('console.command', ['command' => 'doctrine:migrations:dump-schema'])
 
         ->set('doctrine_migrations.execute_command.with_context', ExecuteCommand::class)
-            ->decorate('doctrine_migrations.execute_command')
+            ->decorate('doctrine_migrations.execute_command', null, 0, ContainerInterface::IGNORE_ON_INVALID_REFERENCE)
             ->args([
                 service('.inner'),
                 service('doctrine.doctrine_context.configuration'),
@@ -61,7 +62,7 @@ return static function (ContainerConfigurator $container): void {
             ->tag('console.command', ['command' => 'doctrine:migrations:execute'])
 
         ->set('doctrine_migrations.generate_command.with_context', GenerateCommand::class)
-            ->decorate('doctrine_migrations.generate_command')
+            ->decorate('doctrine_migrations.generate_command', null, 0, ContainerInterface::IGNORE_ON_INVALID_REFERENCE)
             ->args([
                 service('.inner'),
                 service('doctrine.doctrine_context.configuration'),
@@ -69,7 +70,7 @@ return static function (ContainerConfigurator $container): void {
             ->tag('console.command', ['command' => 'doctrine:migrations:generate'])
 
         ->set('doctrine_migrations.latest_command.with_context', LatestCommand::class)
-            ->decorate('doctrine_migrations.latest_command')
+            ->decorate('doctrine_migrations.latest_command', null, 0, ContainerInterface::IGNORE_ON_INVALID_REFERENCE)
             ->args([
                 service('.inner'),
                 service('doctrine.doctrine_context.configuration'),
@@ -77,7 +78,7 @@ return static function (ContainerConfigurator $container): void {
             ->tag('console.command', ['command' => 'doctrine:migrations:latest'])
 
         ->set('doctrine_migrations.versions_command.with_context', ListCommand::class)
-            ->decorate('doctrine_migrations.versions_command')
+            ->decorate('doctrine_migrations.versions_command', null, 0, ContainerInterface::IGNORE_ON_INVALID_REFERENCE)
             ->args([
                 service('.inner'),
                 service('doctrine.doctrine_context.configuration'),
@@ -85,7 +86,7 @@ return static function (ContainerConfigurator $container): void {
             ->tag('console.command', ['command' => 'doctrine:migrations:list'])
 
         ->set('doctrine_migrations.migrate_command.with_context', MigrateCommand::class)
-            ->decorate('doctrine_migrations.migrate_command')
+            ->decorate('doctrine_migrations.migrate_command', null, 0, ContainerInterface::IGNORE_ON_INVALID_REFERENCE)
             ->args([
                 service('.inner'),
                 service('doctrine.doctrine_context.configuration'),
@@ -93,7 +94,7 @@ return static function (ContainerConfigurator $container): void {
             ->tag('console.command', ['command' => 'doctrine:migrations:migrate'])
 
         ->set('doctrine_migrations.rollup_command.with_context', RollupCommand::class)
-            ->decorate('doctrine_migrations.rollup_command')
+            ->decorate('doctrine_migrations.rollup_command', null, 0, ContainerInterface::IGNORE_ON_INVALID_REFERENCE)
             ->args([
                 service('.inner'),
                 service('doctrine.doctrine_context.configuration'),
@@ -101,7 +102,7 @@ return static function (ContainerConfigurator $container): void {
             ->tag('console.command', ['command' => 'doctrine:migrations:rollup'])
 
         ->set('doctrine_migrations.status_command.with_context', StatusCommand::class)
-            ->decorate('doctrine_migrations.status_command')
+            ->decorate('doctrine_migrations.status_command', null, 0, ContainerInterface::IGNORE_ON_INVALID_REFERENCE)
             ->args([
                 service('.inner'),
                 service('doctrine.doctrine_context.configuration'),
@@ -109,7 +110,7 @@ return static function (ContainerConfigurator $container): void {
             ->tag('console.command', ['command' => 'doctrine:migrations:status'])
 
         ->set('doctrine_migrations.sync_metadata_command.with_context', SyncMetadataCommand::class)
-            ->decorate('doctrine_migrations.sync_metadata_command')
+            ->decorate('doctrine_migrations.sync_metadata_command', null, 0, ContainerInterface::IGNORE_ON_INVALID_REFERENCE)
             ->args([
                 service('.inner'),
                 service('doctrine.doctrine_context.configuration'),
@@ -117,7 +118,7 @@ return static function (ContainerConfigurator $container): void {
             ->tag('console.command', ['command' => 'doctrine:migrations:sync-metadata-storage'])
 
         ->set('doctrine_migrations.up_to_date_command.with_context', UpToDateCommand::class)
-            ->decorate('doctrine_migrations.up_to_date_command')
+            ->decorate('doctrine_migrations.up_to_date_command', null, 0, ContainerInterface::IGNORE_ON_INVALID_REFERENCE)
             ->args([
                 service('.inner'),
                 service('doctrine.doctrine_context.configuration'),
@@ -125,7 +126,7 @@ return static function (ContainerConfigurator $container): void {
             ->tag('console.command', ['command' => 'doctrine:migrations:up-to-date'])
 
         ->set('doctrine_migrations.version_command.with_context', VersionCommand::class)
-            ->decorate('doctrine_migrations.version_command')
+            ->decorate('doctrine_migrations.version_command', null, 0, ContainerInterface::IGNORE_ON_INVALID_REFERENCE)
             ->args([
                 service('.inner'),
                 service('doctrine.doctrine_context.configuration'),
