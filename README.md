@@ -25,6 +25,8 @@ There is also a subtle schema-pollution problem: after running migrations, `doct
 - **ORM command integration** *(requires `doctrine/orm`)*: `doctrine:schema:create`, `doctrine:schema:validate`, and `doctrine:mapping:info` receive the same fan-out behaviour.
 - **Schema filter**: automatically hides the migration metadata table from `doctrine:schema:update` and `doctrine:schema:validate`, so those commands never see it as unmanaged.
 - **`--ctx-isolation`**: an extra flag added to every wrapped command. When set, a failure in one context does not abort the remaining contexts.
+- **`--ctx-all`**: an extra flag added to every wrapped command. Explicitly runs the command over all registered contexts. Required when `explicit_context` is enabled and no specific context is given.
+- **`explicit_context`** *(bundle config)*: when `true`, every wrapped command requires an explicit context via `--em`, `--conn`, `--connection`, or `--ctx-all`. Prevents accidental fan-out in production environments.
 
 ## Requirements
 
@@ -121,12 +123,43 @@ doctrine_context:
         analytics: ~
 ```
 
+### Requiring explicit context selection
+
+Set `explicit_context: true` to prevent any wrapped command from fanning out over all contexts unless the caller deliberately opts in with `--ctx-all`. Every invocation must target a specific context or pass `--ctx-all` explicitly, making accidental mass operations impossible.
+
+```yaml
+doctrine_context:
+    explicit_context: true
+    entity_managers:
+        default: ~
+        shop: ~
+        analytics: ~
+```
+
+With this option active, the following is an error:
+
+```bash
+# Error: Explicit context is required. Specify a context via --em or use --ctx-all to run over all contexts.
+php bin/console doctrine:migrations:migrate --no-interaction
+```
+
+Provide a context or opt into all:
+
+```bash
+# Single context
+php bin/console doctrine:migrations:migrate --em=shop --no-interaction
+
+# All contexts, intentionally
+php bin/console doctrine:migrations:migrate --ctx-all --no-interaction
+```
+
 ### Full configuration reference
 
 The migration-related keys below are only accepted when `doctrine/doctrine-migrations-bundle` is installed.
 
 ```yaml
 doctrine_context:
+    explicit_context: false     # when true, --em/--conn/--connection or --ctx-all is required
     entity_managers:           # or connections:
         <name>:
             migrations_paths:
@@ -197,11 +230,23 @@ By default, a failure in one context stops execution when executed in non-intera
 php bin/console doctrine:migrations:migrate --no-interaction --ctx-isolation
 ```
 
+### Run over all contexts explicitly with `--ctx-all`
+
+`--ctx-all` behaves identically to omitting a specific context (fans out over every registered context), but makes the intent explicit. It is required when `explicit_context: true` is configured and no specific context is given:
+
+```bash
+php bin/console doctrine:migrations:migrate --ctx-all --no-interaction
+php bin/console doctrine:database:create --ctx-all
+```
+
 ### Create databases
 
 ```bash
 # All contexts
 php bin/console doctrine:database:create
+
+# All contexts, explicitly
+php bin/console doctrine:database:create --ctx-all
 
 # Specific context – both flags are equivalent
 php bin/console doctrine:database:create --connection=shop

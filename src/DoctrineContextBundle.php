@@ -169,6 +169,10 @@ class DoctrineContextBundle extends AbstractBundle
 
         $definition->rootNode()
             ->children()
+                ->booleanNode('explicit_context')
+                    ->defaultFalse()
+                    ->info('When true, requires the context to be specified explicitly via --em, --conn, --connection, or --ctx-all.')
+                ->end()
                 ->append($contextConfiguration('entity_managers'))
                 ->append($contextConfiguration('connections'))
             ->end();
@@ -187,6 +191,10 @@ class DoctrineContextBundle extends AbstractBundle
         if (interface_exists('Doctrine\ORM\EntityManagerInterface')) {
             $container->import('../config/services_orm.php');
         }
+
+        $builder
+            ->getDefinition('doctrine.doctrine_context.configuration')
+            ->addMethodCall('setExplicitContext', [$config['explicit_context']]);
 
         $contexts = array_values(array_unique(array_merge(array_keys($config['entity_managers'] ?? []), array_keys($config['connections'] ?? []))));
         foreach ($contexts as $context) {
