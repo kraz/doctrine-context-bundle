@@ -16,6 +16,8 @@ class Configuration
     /** @var array<string, DependencyFactory> */
     private array $dependencyFactories = [];
 
+    private bool $explicitContext = false;
+
     public function registerContext(string $contextName, bool $isEntityManager): self
     {
         $this->contexts[$contextName] = $isEntityManager;
@@ -51,5 +53,17 @@ class Configuration
     public function findDependencyFactory(string $contextName): DependencyFactory|null
     {
         return $this->dependencyFactories[$contextName] ?? null;
+    }
+
+    public function setExplicitContext(bool $value): self
+    {
+        $this->explicitContext = $value;
+
+        return $this;
+    }
+
+    public function isExplicitContext(): bool
+    {
+        return $this->explicitContext;
     }
 }

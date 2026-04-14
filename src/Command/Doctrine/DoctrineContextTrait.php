@@ -50,14 +50,23 @@ trait DoctrineContextTrait
         $this->setHelp($this->getHelp() ?: $command->getHelp());
         $this->setDefinition($command->getNativeDefinition());
         $this->addOption('ctx-isolation', null, InputOption::VALUE_NONE, 'Continue with the next context, if the current one fails.');
+        $this->addOption('ctx-all', null, InputOption::VALUE_NONE, 'Run the command over all registered contexts (when explicit_context: true).');
     }
 
     private function runAs(Command $command, InputInterface $input, OutputInterface $output): int
     {
         assert($this instanceof Command);
 
+        $ctxAll = (bool) $input->getOption('ctx-all');
+
         if ($command instanceof AbstractEntityManagerCommand) {
-            $list = $this->filterDoctrineContexts(fn (DependencyFactory|string $ctx): bool => is_string($ctx) ? $this->configuration->isEntityManager($ctx) : $ctx->hasEntityManager(), (string) $input->getOption('em'));
+            $emOption = trim((string) $input->getOption('em'));
+
+            if ($this->configuration->isExplicitContext() && $emOption === '' && ! $ctxAll) {
+                throw new InvalidArgumentException('Explicit context is required. Specify a context via --em or use --ctx-all to run over all contexts.');
+            }
+
+            $list = $this->filterDoctrineContexts(fn (DependencyFactory|string $ctx): bool => is_string($ctx) ? $this->configuration->isEntityManager($ctx) : $ctx->hasEntityManager(), $emOption !== '' ? $emOption : null);
 
             return $this->walkDoctrineContexts(function (InputInterface $input, OutputInterface $output, string $em) use ($command) {
                 $command->setDefinition($this->getNativeDefinition());
@@ -69,7 +78,14 @@ trait DoctrineContextTrait
         }
 
         if ($command instanceof AbstractDoctrineMigrationCommand) {
-            $list = $this->filterDoctrineContexts(null, (string) $input->getOption('em'), (string) $input->getOption('conn'));
+            $emOption   = trim((string) $input->getOption('em'));
+            $connOption = trim((string) $input->getOption('conn'));
+
+            if ($this->configuration->isExplicitContext() && $emOption === '' && $connOption === '' && ! $ctxAll) {
+                throw new InvalidArgumentException('Explicit context is required. Specify a context via --em, --conn, or use --ctx-all to run over all contexts.');
+            }
+
+            $list = $this->filterDoctrineContexts(null, $emOption !== '' ? $emOption : null, $connOption !== '' ? $connOption : null);
 
             return $this->walkDoctrineContexts(function (InputInterface $input, OutputInterface $output, string $contextName, DependencyFactory $dependencyFactory) use ($command) {
                 $command = new ReflectionClass($command)->newInstance($dependencyFactory);
@@ -89,7 +105,12 @@ trait DoctrineContextTrait
             }
 
             $targetConnection = $connectionOption ?: ($connOption ?: null);
-            $list             = $this->filterDoctrineContexts(null, null, $targetConnection);
+
+            if ($this->configuration->isExplicitContext() && $targetConnection === null && ! $ctxAll) {
+                throw new InvalidArgumentException('Explicit context is required. Specify a context via --connection, --conn, or use --ctx-all to run over all contexts.');
+            }
+
+            $list = $this->filterDoctrineContexts(null, null, $targetConnection);
 
             return $this->walkDoctrineContexts(function (InputInterface $input, OutputInterface $output, string $contextName) use ($command) {
                 $command->setDefinition($this->getNativeDefinition());
