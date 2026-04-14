@@ -4,7 +4,7 @@
 [![Packagist Version](https://img.shields.io/packagist/v/kraz/doctrine-context-bundle)](https://packagist.org/packages/kraz/doctrine-context-bundle)
 [![GitHub license](https://img.shields.io/github/license/kraz/doctrine-context-bundle)](LICENSE)
 
-A Symfony bundle that makes working with multiple Doctrine entity managers or DBAL connections painless. It wraps the standard Doctrine commands so that a single command can target one specific context or fan out across all of them automatically. The only hard dependency is `doctrine/dbal` — ORM and Migrations support are both optional.
+A Symfony bundle that makes working with multiple Doctrine entity managers or DBAL connections painless. It wraps the standard Doctrine commands so that a single command can target one specific context or fan out across all of them automatically. The only hard dependency is `doctrine/dbal` - ORM and Migrations support are both optional.
 
 ## The problem
 
@@ -20,13 +20,13 @@ There is also a subtle schema-pollution problem: after running migrations, `doct
 
 ## What this bundle does
 
-- **Database command integration**: `doctrine:database:create` fans out across all registered contexts. Works with DBAL alone — no ORM or Migrations required. Accepts both `--connection` (native option) and `--conn` (context-system alias).
-- **Migrations command integration** *(requires `doctrine/doctrine-migrations-bundle`)*: every `doctrine:migrations:*` command gains `--em` and `--conn` options. Pass one to target a specific context, or omit both to run across all registered contexts in sequence.
-- **ORM command integration** *(requires `doctrine/orm`)*: `doctrine:schema:create`, `doctrine:schema:validate`, and `doctrine:mapping:info` receive the same fan-out behaviour.
+- **Database command integration**: `doctrine:database:create` fans out across all registered contexts. Works with DBAL alone - no ORM or Migrations required. Accepts `--connection` / `--conn` to target a single context and `--connections` / `--conns` to target a specific subset.
+- **Migrations command integration** *(requires `doctrine/doctrine-migrations-bundle`)*: every `doctrine:migrations:*` command gains `--em` / `--ems` and `--conn` / `--conns` options. Pass one to target a single context or a subset, or omit all to run across every registered context in sequence.
+- **ORM command integration** *(requires `doctrine/orm`)*: `doctrine:schema:create`, `doctrine:schema:validate`, and `doctrine:mapping:info` receive the same fan-out behaviour, including `--em` / `--ems` for subset selection.
 - **Schema filter**: automatically hides the migration metadata table from `doctrine:schema:update` and `doctrine:schema:validate`, so those commands never see it as unmanaged.
 - **`--ctx-isolation`**: an extra flag added to every wrapped command. When set, a failure in one context does not abort the remaining contexts.
 - **`--ctx-all`**: an extra flag added to every wrapped command. Explicitly runs the command over all registered contexts. Required when `explicit_context` is enabled and no specific context is given.
-- **`explicit_context`** *(bundle config)*: when `true`, every wrapped command requires an explicit context via `--em`, `--conn`, `--connection`, or `--ctx-all`. Prevents accidental fan-out in production environments.
+- **`explicit_context`** *(bundle config)*: when `true`, every wrapped command requires an explicit context via `--em`, `--ems`, `--conn`, `--conns`, `--connection`, `--connections`, or `--ctx-all`. Prevents accidental fan-out in production environments.
 
 ## Requirements
 
@@ -139,7 +139,7 @@ doctrine_context:
 With this option active, the following is an error:
 
 ```bash
-# Error: Explicit context is required. Specify a context via --em or use --ctx-all to run over all contexts.
+# Error: Explicit context is required. Specify a context via --em, --ems, --conn, --conns, or use --ctx-all to run over all contexts.
 php bin/console doctrine:migrations:migrate --no-interaction
 ```
 
@@ -148,6 +148,9 @@ Provide a context or opt into all:
 ```bash
 # Single context
 php bin/console doctrine:migrations:migrate --em=shop --no-interaction
+
+# Subset of contexts
+php bin/console doctrine:migrations:migrate --ems=shop,analytics --no-interaction
 
 # All contexts, intentionally
 php bin/console doctrine:migrations:migrate --ctx-all --no-interaction
@@ -159,7 +162,7 @@ The migration-related keys below are only accepted when `doctrine/doctrine-migra
 
 ```yaml
 doctrine_context:
-    explicit_context: false     # when true, --em/--conn/--connection or --ctx-all is required
+    explicit_context: false     # when true, --em/--ems/--conn/--conns/--connection/--connections or --ctx-all is required
     entity_managers:           # or connections:
         <name>:
             migrations_paths:
@@ -222,6 +225,30 @@ php bin/console doctrine:migrations:migrate --em=shop --no-interaction
 php bin/console doctrine:migrations:migrate --conn=shop --no-interaction
 ```
 
+### Target a subset of contexts
+
+Use the plural form of each option to pass multiple context names. Values can be supplied as separate arguments or as a comma-separated list - both forms are equivalent and may be combined:
+
+```bash
+# Separate arguments
+php bin/console doctrine:migrations:migrate --ems=shop --ems=analytics --no-interaction
+
+# Comma-separated (same result)
+php bin/console doctrine:migrations:migrate --ems=shop,analytics --no-interaction
+
+# DBAL connections
+php bin/console doctrine:migrations:migrate --conns=shop,analytics --no-interaction
+
+# ORM schema commands
+php bin/console doctrine:schema:create --ems=shop,analytics
+```
+
+| Option         | Plural / multi-value form | Applicable commands             |
+|----------------|---------------------------|---------------------------------|
+| `--em`         | `--ems`                   | ORM and migration commands      |
+| `--conn`       | `--conns`                 | Migration and database commands |
+| `--connection` | `--connections`           | Database commands               |
+
 ### Continue past failures with `--ctx-isolation`
 
 By default, a failure in one context stops execution when executed in non-interactive mode. Use `--ctx-isolation` to continue with the remaining contexts regardless:
@@ -248,9 +275,13 @@ php bin/console doctrine:database:create
 # All contexts, explicitly
 php bin/console doctrine:database:create --ctx-all
 
-# Specific context – both flags are equivalent
+# Specific context – all four flags are equivalent
 php bin/console doctrine:database:create --connection=shop
 php bin/console doctrine:database:create --conn=shop
+
+# Subset of contexts – all four flags are equivalent
+php bin/console doctrine:database:create --connections=shop,analytics
+php bin/console doctrine:database:create --conns=shop,analytics
 ```
 
 ### All supported commands

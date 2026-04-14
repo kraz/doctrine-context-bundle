@@ -6,12 +6,16 @@ namespace Kraz\DoctrineContextBundle\Tests\Functional;
 
 use Doctrine\DBAL\Connection;
 use Doctrine\Persistence\ManagerRegistry;
+use Kraz\DoctrineContextBundle\Command\Doctrine\Schema\CreateSchemaCommand;
 use Kraz\DoctrineContextBundle\Tests\InspectsSqliteDatabasesTrait;
 use Kraz\DoctrineContextBundle\Tests\RunsConsoleCommandsTrait;
 use Kraz\DoctrineContextBundle\Tests\TestKernelOrmOnly;
 use Override;
 use Symfony\Bundle\FrameworkBundle\Console\Application;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
+use Symfony\Component\Console\Exception\InvalidArgumentException;
+use Symfony\Component\Console\Input\ArrayInput;
+use Symfony\Component\Console\Output\BufferedOutput;
 
 class SchemaCreateTest extends KernelTestCase
 {
@@ -91,6 +95,42 @@ class SchemaCreateTest extends KernelTestCase
         $this->runCommand('doctrine:schema:create --em=alpha');
 
         $this->assertTableNotExists('alpha', 'zzz_migrations');
+    }
+
+    public function testSchemaCreateWithEmsRunsOnlySelectedContexts(): void
+    {
+        $exitCode = $this->runCommand('doctrine:schema:create --ems=alpha --ems=beta');
+
+        self::assertSame(0, $exitCode);
+
+        $this->assertTableExists('alpha', 'product');
+        $this->assertTableExists('beta', 'customer');
+        $this->assertTableNotExists('default', 'tag');
+    }
+
+    public function testSchemaCreateWithEmsAcceptsCommaSeparatedValues(): void
+    {
+        $exitCode = $this->runCommand('doctrine:schema:create --ems=alpha,beta');
+
+        self::assertSame(0, $exitCode);
+
+        $this->assertTableExists('alpha', 'product');
+        $this->assertTableExists('beta', 'customer');
+        $this->assertTableNotExists('default', 'tag');
+    }
+
+    public function testSchemaCreateFailsWhenBothEmAndEmsAreSpecified(): void
+    {
+        $command = self::getContainer()->get('doctrine.schema_create_command.with_context');
+        self::assertInstanceOf(CreateSchemaCommand::class, $command);
+        /** @psalm-suppress InternalMethod */
+        $command->mergeApplicationDefinition();
+
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage('You can specify only one of the --em and --ems options.');
+
+        $input = new ArrayInput(['--em' => 'alpha', '--ems' => ['beta']], $command->getDefinition());
+        $command->run($input, new BufferedOutput());
     }
 
     public function testSchemaValidateSucceedsAfterSchemaCreate(): void
