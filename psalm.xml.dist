@@ -37,12 +37,5 @@
                 <directory name="tests"/>
             </errorLevel>
         </ClassMustBeFinal>
-
-        <RedundantCast>
-            <errorLevel type="suppress">
-                <directory name="src"/>
-                <directory name="tests"/>
-            </errorLevel>
-        </RedundantCast>
     </issueHandlers>
 </psalm>
