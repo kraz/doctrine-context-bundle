@@ -192,6 +192,8 @@ class DoctrineContextBundle extends AbstractBundle
             $container->import('../config/services_orm.php');
         }
 
+        $this->wireStrategies($builder);
+
         $builder
             ->getDefinition('doctrine.doctrine_context.configuration')
             ->addMethodCall('setExplicitContext', [$config['explicit_context']]);
@@ -211,6 +213,21 @@ class DoctrineContextBundle extends AbstractBundle
 
             $this->loadContextConfiguration($context, $entityManagerContext ?? $connectionContext, $builder, $entityManagerContext !== null);
         }
+    }
+
+    private function wireStrategies(ContainerBuilder $builder): void
+    {
+        $contextRunner = $builder->getDefinition('doctrine.doctrine_context.context_runner');
+
+        if ($builder->hasDefinition('doctrine.doctrine_context.strategy.entity_manager')) {
+            $contextRunner->addMethodCall('addStrategy', [new Reference('doctrine.doctrine_context.strategy.entity_manager')]);
+        }
+
+        if ($builder->hasDefinition('doctrine.doctrine_context.strategy.migration')) {
+            $contextRunner->addMethodCall('addStrategy', [new Reference('doctrine.doctrine_context.strategy.migration')]);
+        }
+
+        $contextRunner->addMethodCall('addStrategy', [new Reference('doctrine.doctrine_context.strategy.connection')]);
     }
 
     /** @param array<string, mixed> $config */
