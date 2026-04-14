@@ -19,13 +19,19 @@ use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\Console\Style\SymfonyStyle;
 use Throwable;
 
+use function array_filter;
+use function array_key_exists;
 use function array_key_first;
+use function array_map;
 use function array_replace;
 use function array_shift;
+use function array_unique;
+use function array_values;
 use function assert;
 use function call_user_func;
 use function count;
-use function in_array;
+use function explode;
+use function implode;
 use function is_string;
 use function ksort;
 use function sprintf;
@@ -48,9 +54,23 @@ trait DoctrineContextTrait
         $this->setDescription(($this->getDescription() ?: $command->getDescription()) . ' [Doctrine Context]');
         $this->setAliases($this->getAliases() ?: $command->getAliases());
         $this->setHelp($this->getHelp() ?: $command->getHelp());
-        $this->setDefinition($command->getNativeDefinition());
+        $nativeDefinition = $command->getNativeDefinition();
+        $this->setDefinition($nativeDefinition);
         $this->addOption('ctx-isolation', null, InputOption::VALUE_NONE, 'Continue with the next context, if the current one fails.');
         $this->addOption('ctx-all', null, InputOption::VALUE_NONE, 'Run the command over all registered contexts (when explicit_context: true).');
+
+        if ($nativeDefinition->hasOption('em')) {
+            $this->addOption('ems', null, InputOption::VALUE_IS_ARRAY | InputOption::VALUE_REQUIRED, 'The names of the entity managers to use (multi-value alias for --em).');
+        }
+
+        if ($nativeDefinition->hasOption('conn')) {
+            $this->addOption('conns', null, InputOption::VALUE_IS_ARRAY | InputOption::VALUE_REQUIRED, 'The names of the connections to use (multi-value alias for --conn).');
+        }
+
+        if ($nativeDefinition->hasOption('connection')) {
+            $this->addOption('connections', null, InputOption::VALUE_IS_ARRAY | InputOption::VALUE_REQUIRED, 'The names of the connections to use (multi-value alias for --connection).');
+            $this->addOption('conns', null, InputOption::VALUE_IS_ARRAY | InputOption::VALUE_REQUIRED, 'The names of the connections to use (multi-value alias for --conn).');
+        }
     }
 
     private function runAs(Command $command, InputInterface $input, OutputInterface $output): int
@@ -60,13 +80,20 @@ trait DoctrineContextTrait
         $ctxAll = (bool) $input->getOption('ctx-all');
 
         if ($command instanceof AbstractEntityManagerCommand) {
-            $emOption = trim((string) $input->getOption('em'));
+            $emOption  = trim((string) $input->getOption('em'));
+            $emsOption = $this->resolveArrayOption($input, 'ems');
 
-            if ($this->configuration->isExplicitContext() && $emOption === '' && ! $ctxAll) {
-                throw new InvalidArgumentException('Explicit context is required. Specify a context via --em or use --ctx-all to run over all contexts.');
+            if ($emOption !== '' && count($emsOption) > 0) {
+                throw new InvalidArgumentException('You can specify only one of the --em and --ems options.');
             }
 
-            $list = $this->filterDoctrineContexts(fn (DependencyFactory|string $ctx): bool => is_string($ctx) ? $this->configuration->isEntityManager($ctx) : $ctx->hasEntityManager(), $emOption !== '' ? $emOption : null);
+            $targetEntityManagers = $emOption !== '' ? [$emOption] : $emsOption;
+
+            if ($this->configuration->isExplicitContext() && count($targetEntityManagers) === 0 && ! $ctxAll) {
+                throw new InvalidArgumentException('Explicit context is required. Specify a context via --em, --ems, or use --ctx-all to run over all contexts.');
+            }
+
+            $list = $this->filterDoctrineContexts(fn (DependencyFactory|string $ctx): bool => is_string($ctx) ? $this->configuration->isEntityManager($ctx) : $ctx->hasEntityManager(), $targetEntityManagers);
 
             return $this->walkDoctrineContexts(function (InputInterface $input, OutputInterface $output, string $em) use ($command) {
                 $command->setDefinition($this->getNativeDefinition());
@@ -78,14 +105,27 @@ trait DoctrineContextTrait
         }
 
         if ($command instanceof AbstractDoctrineMigrationCommand) {
-            $emOption   = trim((string) $input->getOption('em'));
-            $connOption = trim((string) $input->getOption('conn'));
+            $emOption    = trim((string) $input->getOption('em'));
+            $connOption  = trim((string) $input->getOption('conn'));
+            $emsOption   = $this->resolveArrayOption($input, 'ems');
+            $connsOption = $this->resolveArrayOption($input, 'conns');
 
-            if ($this->configuration->isExplicitContext() && $emOption === '' && $connOption === '' && ! $ctxAll) {
-                throw new InvalidArgumentException('Explicit context is required. Specify a context via --em, --conn, or use --ctx-all to run over all contexts.');
+            if ($emOption !== '' && count($emsOption) > 0) {
+                throw new InvalidArgumentException('You can specify only one of the --em and --ems options.');
             }
 
-            $list = $this->filterDoctrineContexts(null, $emOption !== '' ? $emOption : null, $connOption !== '' ? $connOption : null);
+            if ($connOption !== '' && count($connsOption) > 0) {
+                throw new InvalidArgumentException('You can specify only one of the --conn and --conns options.');
+            }
+
+            $targetEntityManagers  = $emOption !== '' ? [$emOption] : $emsOption;
+            $targetConnectionNames = $connOption !== '' ? [$connOption] : $connsOption;
+
+            if ($this->configuration->isExplicitContext() && count($targetEntityManagers) === 0 && count($targetConnectionNames) === 0 && ! $ctxAll) {
+                throw new InvalidArgumentException('Explicit context is required. Specify a context via --em, --ems, --conn, --conns, or use --ctx-all to run over all contexts.');
+            }
+
+            $list = $this->filterDoctrineContexts(null, $targetEntityManagers, $targetConnectionNames);
 
             return $this->walkDoctrineContexts(function (InputInterface $input, OutputInterface $output, string $contextName, DependencyFactory $dependencyFactory) use ($command) {
                 $command = new ReflectionClass($command)->newInstance($dependencyFactory);
@@ -97,20 +137,33 @@ trait DoctrineContextTrait
         }
 
         if ($command->getNativeDefinition()->hasOption('connection')) {
-            $connectionOption = trim((string) $input->getOption('connection'));
-            $connOption       = trim((string) $input->getOption('conn'));
+            $connectionOption  = trim((string) $input->getOption('connection'));
+            $connOption        = trim((string) $input->getOption('conn'));
+            $connectionsOption = $this->resolveArrayOption($input, 'connections');
+            $connsOption       = $this->resolveArrayOption($input, 'conns');
 
             if ($connectionOption !== '' && $connOption !== '') {
                 throw new InvalidArgumentException('You can specify only one of the --connection and --conn options.');
             }
 
-            $targetConnection = $connectionOption ?: ($connOption ?: null);
-
-            if ($this->configuration->isExplicitContext() && $targetConnection === null && ! $ctxAll) {
-                throw new InvalidArgumentException('Explicit context is required. Specify a context via --connection, --conn, or use --ctx-all to run over all contexts.');
+            if (count($connectionsOption) > 0 && count($connsOption) > 0) {
+                throw new InvalidArgumentException('You can specify only one of the --connections and --conns options.');
             }
 
-            $list = $this->filterDoctrineContexts(null, null, $targetConnection);
+            $singleTarget = $connectionOption ?: ($connOption ?: null);
+            $arrayTargets = count($connectionsOption) > 0 ? $connectionsOption : $connsOption;
+
+            if ($singleTarget !== null && count($arrayTargets) > 0) {
+                throw new InvalidArgumentException('You can specify only one of the --connection/--conn and --connections/--conns options.');
+            }
+
+            $targetConnectionNames = $singleTarget !== null ? [$singleTarget] : $arrayTargets;
+
+            if ($this->configuration->isExplicitContext() && count($targetConnectionNames) === 0 && ! $ctxAll) {
+                throw new InvalidArgumentException('Explicit context is required. Specify a context via --connection, --connections, --conn, --conns, or use --ctx-all to run over all contexts.');
+            }
+
+            $list = $this->filterDoctrineContexts(null, [], $targetConnectionNames);
 
             return $this->walkDoctrineContexts(function (InputInterface $input, OutputInterface $output, string $contextName) use ($command) {
                 $command->setDefinition($this->getNativeDefinition());
@@ -166,36 +219,44 @@ trait DoctrineContextTrait
 
     /**
      * @param callable(DependencyFactory|string): bool|null $filter
+     * @param string[]                                      $targetEntityManagers
+     * @param string[]                                      $targetConnectionNames
      *
      * @return array<string, DependencyFactory|null>
      */
-    private function filterDoctrineContexts(callable|null $filter = null, string|null $targetEntityManager = null, string|null $targetConnectionName = null): array
+    private function filterDoctrineContexts(callable|null $filter = null, array $targetEntityManagers = [], array $targetConnectionNames = []): array
     {
-        $targetEntityManager  = trim($targetEntityManager ?? '') ?: null;
-        $targetConnectionName = trim($targetConnectionName ?? '') ?: null;
-        if ($targetEntityManager !== null && $targetConnectionName !== null) {
-            throw new InvalidArgumentException('You can specify only one of the --em and --conn options.');
+        $targetEntityManagers  = array_values(array_filter(array_map('trim', $targetEntityManagers)));
+        $targetConnectionNames = array_values(array_filter(array_map('trim', $targetConnectionNames)));
+
+        if (count($targetEntityManagers) > 0 && count($targetConnectionNames) > 0) {
+            throw new InvalidArgumentException('You can specify only one of the --em/--ems and --conn/--conns options.');
         }
 
-        $contextName = $targetEntityManager ?: $targetConnectionName;
-        if ($contextName !== null) {
-            $dependencyFactory = $this->configuration->findDependencyFactory($contextName);
-            if ($dependencyFactory !== null) {
-                $list = [$contextName => $dependencyFactory];
-            } elseif (in_array($contextName, $this->configuration->getContextNames(), true)) {
-                $list = [$contextName => null];
-            } else {
-                $list = [];
+        $targetNames         = count($targetEntityManagers) > 0 ? $targetEntityManagers : $targetConnectionNames;
+        $isEntityManagerMode = count($targetEntityManagers) > 0;
+
+        // Build the full context pool (dependency factories + context-only entries)
+        $allContexts = $this->configuration->getDependencyFactories();
+        foreach ($this->configuration->getContextNames() as $name) {
+            if (! isset($allContexts[$name])) {
+                $allContexts[$name] = null;
             }
-        } else {
-            $list = $this->configuration->getDependencyFactories();
-            foreach ($this->configuration->getContextNames() as $name) {
-                if (! isset($list[$name])) {
-                    $list[$name] = null;
+        }
+
+        // Select the requested subset or take all
+        if (count($targetNames) > 0) {
+            $list = [];
+            foreach ($targetNames as $name) {
+                if (array_key_exists($name, $allContexts)) {
+                    $list[$name] = $allContexts[$name];
                 }
             }
+        } else {
+            $list = $allContexts;
         }
 
+        // Apply callable filter
         if ($filter !== null) {
             $filteredList = [];
             foreach ($list as $contextName => $dependencyFactory) {
@@ -209,17 +270,42 @@ trait DoctrineContextTrait
             $list = $filteredList;
         }
 
-        if (count($list) === 0 && $targetEntityManager !== null) {
-            throw new InvalidArgumentException(sprintf('Unknown doctrine entity manager "%s" or it\'s not registered as doctrine context.', $targetEntityManager));
-        }
+        // Throw for invalid/not-found targets
+        if (count($list) === 0 && count($targetNames) > 0) {
+            if ($isEntityManagerMode) {
+                throw new InvalidArgumentException(count($targetNames) === 1
+                    ? sprintf('Unknown doctrine entity manager "%s" or it\'s not registered as doctrine context.', $targetNames[0])
+                    : sprintf('Unknown doctrine entity managers "%s" or they are not registered as doctrine contexts.', implode('", "', $targetNames)));
+            }
 
-        if (count($list) === 0 && $targetConnectionName !== null) {
-            throw new InvalidArgumentException(sprintf('Unknown doctrine connection "%s" or it\'s not registered as doctrine context.', $targetConnectionName));
+            throw new InvalidArgumentException(count($targetNames) === 1
+                ? sprintf('Unknown doctrine connection "%s" or it\'s not registered as doctrine context.', $targetNames[0])
+                : sprintf('Unknown doctrine connections "%s" or they are not registered as doctrine contexts.', implode('", "', $targetNames)));
         }
 
         ksort($list);
 
         return $list;
+    }
+
+    /** @return string[] */
+    private function resolveArrayOption(InputInterface $input, string $name): array
+    {
+        if (! $input->hasOption($name)) {
+            return [];
+        }
+
+        $values = [];
+        foreach ((array) $input->getOption($name) as $value) {
+            foreach (explode(',', $value) as $part) {
+                $part = trim($part);
+                if ($part !== '') {
+                    $values[] = $part;
+                }
+            }
+        }
+
+        return array_values(array_unique($values));
     }
 
     /** @param array<string, mixed> $override */

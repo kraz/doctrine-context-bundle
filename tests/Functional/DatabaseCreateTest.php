@@ -76,6 +76,84 @@ class DatabaseCreateTest extends KernelTestCase
         self::assertStringContainsString('beta', $output, 'Output should mention the beta context');
     }
 
+    public function testDatabaseCreateWithConnectionsOptionRunsSubsetOfContexts(): void
+    {
+        $output = $this->captureOutput('doctrine:database:create --connections=alpha --connections=beta --if-not-exists --ctx-isolation --no-interaction');
+
+        self::assertStringContainsString('alpha', $output, 'Output should mention the alpha context');
+        self::assertStringContainsString('beta', $output, 'Output should mention the beta context');
+        self::assertStringNotContainsString('default', $output, 'Output should not mention the default context');
+    }
+
+    public function testDatabaseCreateWithConnectionsOptionAcceptsCommaSeparatedValues(): void
+    {
+        $output = $this->captureOutput('doctrine:database:create --connections=alpha,beta --if-not-exists --ctx-isolation --no-interaction');
+
+        self::assertStringContainsString('alpha', $output, 'Output should mention the alpha context');
+        self::assertStringContainsString('beta', $output, 'Output should mention the beta context');
+        self::assertStringNotContainsString('default', $output, 'Output should not mention the default context');
+    }
+
+    public function testDatabaseCreateWithConnsOptionRunsSubsetOfContexts(): void
+    {
+        $output = $this->captureOutput('doctrine:database:create --conns=alpha --conns=beta --if-not-exists --ctx-isolation --no-interaction');
+
+        self::assertStringContainsString('alpha', $output, 'Output should mention the alpha context');
+        self::assertStringContainsString('beta', $output, 'Output should mention the beta context');
+        self::assertStringNotContainsString('default', $output, 'Output should not mention the default context');
+    }
+
+    public function testDatabaseCreateWithConnsOptionAcceptsCommaSeparatedValues(): void
+    {
+        $output = $this->captureOutput('doctrine:database:create --conns=alpha,beta --if-not-exists --ctx-isolation --no-interaction');
+
+        self::assertStringContainsString('alpha', $output, 'Output should mention the alpha context');
+        self::assertStringContainsString('beta', $output, 'Output should mention the beta context');
+        self::assertStringNotContainsString('default', $output, 'Output should not mention the default context');
+    }
+
+    public function testDatabaseCreateFailsWhenConnectionAndConnectionsAreSpecified(): void
+    {
+        $command = self::getContainer()->get('doctrine.database_create_command.with_context');
+        self::assertInstanceOf(CreateDatabaseCommand::class, $command);
+        /** @psalm-suppress InternalMethod */
+        $command->mergeApplicationDefinition();
+
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage('You can specify only one of the --connection/--conn and --connections/--conns options.');
+
+        $input = new ArrayInput(['--connection' => 'alpha', '--connections' => ['beta'], '--if-not-exists' => true], $command->getDefinition());
+        $command->run($input, new BufferedOutput());
+    }
+
+    public function testDatabaseCreateFailsWhenConnectionsAndConnsAreSpecified(): void
+    {
+        $command = self::getContainer()->get('doctrine.database_create_command.with_context');
+        self::assertInstanceOf(CreateDatabaseCommand::class, $command);
+        /** @psalm-suppress InternalMethod */
+        $command->mergeApplicationDefinition();
+
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage('You can specify only one of the --connections and --conns options.');
+
+        $input = new ArrayInput(['--connections' => ['alpha'], '--conns' => ['beta'], '--if-not-exists' => true], $command->getDefinition());
+        $command->run($input, new BufferedOutput());
+    }
+
+    public function testDatabaseCreateFailsWhenConnAndConnsAreSpecified(): void
+    {
+        $command = self::getContainer()->get('doctrine.database_create_command.with_context');
+        self::assertInstanceOf(CreateDatabaseCommand::class, $command);
+        /** @psalm-suppress InternalMethod */
+        $command->mergeApplicationDefinition();
+
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage('You can specify only one of the --connection/--conn and --connections/--conns options.');
+
+        $input = new ArrayInput(['--conn' => 'alpha', '--conns' => ['beta'], '--if-not-exists' => true], $command->getDefinition());
+        $command->run($input, new BufferedOutput());
+    }
+
     public function testDatabaseCreateFailsWhenBothConnectionAndConnAreSpecified(): void
     {
         // Run through the command directly (bypassing Application) so that Symfony's

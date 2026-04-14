@@ -55,7 +55,7 @@ class ExplicitContextTest extends KernelTestCase
         $command->mergeApplicationDefinition();
 
         $this->expectException(InvalidArgumentException::class);
-        $this->expectExceptionMessage('Explicit context is required. Specify a context via --connection, --conn, or use --ctx-all to run over all contexts.');
+        $this->expectExceptionMessage('Explicit context is required. Specify a context via --connection, --connections, --conn, --conns, or use --ctx-all to run over all contexts.');
 
         $input = new ArrayInput(['--if-not-exists' => true], $command->getDefinition());
         $command->run($input, new BufferedOutput());
