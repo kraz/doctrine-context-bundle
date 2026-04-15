@@ -42,6 +42,7 @@ There is also a subtle schema-pollution problem: after running migrations, `doct
 
   - **`--ctx-isolation`**: When set, a failure in one context does not abort the remaining contexts.
   - **`--ctx-all`**: Explicitly runs the command over all registered contexts. Required when `explicit_context` is enabled and no specific context is given.
+  - **`--ctx-output-style`**: Control how the context name is being printed to the output.
 
 - ### Bundle configurations about commands execution behavior
   - **`explicit_context`**: When `true`, every wrapped command requires an explicit context via `--em`, `--ems`, `--conn`, `--conns`, `--connection`, `--connections`, or `--ctx-all`. Prevents accidental fan-out in production environments.
