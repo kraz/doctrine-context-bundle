@@ -1,3 +1,4 @@
+*.sh
 .phpunit.cache
 composer.lock
 config/reference.php

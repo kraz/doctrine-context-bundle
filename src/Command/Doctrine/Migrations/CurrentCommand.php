@@ -16,7 +16,7 @@ class CurrentCommand extends Command
         private readonly \Doctrine\Migrations\Tools\Console\Command\CurrentCommand $command,
         private readonly ContextRunner $contextRunner,
     ) {
-        parent::__construct($this->command->getName(), $this->command->getCode());
+        parent::__construct($this->command->getName());
     }
 
     #[Override]

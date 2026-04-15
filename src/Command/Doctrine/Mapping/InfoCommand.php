@@ -16,7 +16,7 @@ class InfoCommand extends Command
         private readonly \Doctrine\ORM\Tools\Console\Command\InfoCommand $command,
         private readonly ContextRunner $contextRunner,
     ) {
-        parent::__construct($this->command->getName(), $this->command->getCode());
+        parent::__construct($this->command->getName());
     }
 
     #[Override]

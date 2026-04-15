@@ -29,6 +29,7 @@ use function count;
 use function explode;
 use function implode;
 use function ksort;
+use function method_exists;
 use function sprintf;
 use function trim;
 
@@ -53,6 +54,14 @@ final class ContextRunner
 
     public function configure(Command $wrapper, Command $innerCommand): void
     {
+        if (method_exists($wrapper, 'getCode') && $wrapper->getCode() !== null) {
+            throw new InvalidArgumentException(sprintf('The CLI command "%s" is not expected to use custom execution code', $wrapper::class));
+        }
+
+        if (method_exists($innerCommand, 'getCode') && $innerCommand->getCode() !== null) {
+            throw new InvalidArgumentException(sprintf('The CLI command "%s" is not expected to use custom execution code', $innerCommand::class));
+        }
+
         $name = $wrapper->getName() ?? $innerCommand->getName();
         if ($name !== null) {
             $wrapper->setName($name);
