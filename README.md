@@ -29,7 +29,7 @@ There is also a subtle schema-pollution problem: after running migrations, `doct
 
     Every `doctrine:migrations:*` command gains `--em` / `--ems` and `--conn` / `--conns` options. Pass one to target a single context or a subset, or omit all to run across every registered context in sequence.
 
-- ### ORM command integration**
+- ### ORM command integration
     > *requires `doctrine/orm`*
 
     The `doctrine:schema:create`, `doctrine:schema:validate`, and `doctrine:mapping:info` receive the same fan-out behaviour, including `--em` / `--ems` for subset selection.
