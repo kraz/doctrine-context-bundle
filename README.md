@@ -20,13 +20,31 @@ There is also a subtle schema-pollution problem: after running migrations, `doct
 
 ## What this bundle does
 
-- **Database command integration**: `doctrine:database:create` fans out across all registered contexts. Works with DBAL alone - no ORM or Migrations required. Accepts `--connection` / `--conn` to target a single context and `--connections` / `--conns` to target a specific subset.
-- **Migrations command integration** *(requires `doctrine/doctrine-migrations-bundle`)*: every `doctrine:migrations:*` command gains `--em` / `--ems` and `--conn` / `--conns` options. Pass one to target a single context or a subset, or omit all to run across every registered context in sequence.
-- **ORM command integration** *(requires `doctrine/orm`)*: `doctrine:schema:create`, `doctrine:schema:validate`, and `doctrine:mapping:info` receive the same fan-out behaviour, including `--em` / `--ems` for subset selection.
-- **Schema filter**: automatically hides the migration metadata table from `doctrine:schema:update` and `doctrine:schema:validate`, so those commands never see it as unmanaged.
-- **`--ctx-isolation`**: an extra flag added to every wrapped command. When set, a failure in one context does not abort the remaining contexts.
-- **`--ctx-all`**: an extra flag added to every wrapped command. Explicitly runs the command over all registered contexts. Required when `explicit_context` is enabled and no specific context is given.
-- **`explicit_context`** *(bundle config)*: when `true`, every wrapped command requires an explicit context via `--em`, `--ems`, `--conn`, `--conns`, `--connection`, `--connections`, or `--ctx-all`. Prevents accidental fan-out in production environments.
+- ### Database command integration
+
+    The command `doctrine:database:create` fans out across all registered contexts. Works with DBAL alone - no ORM or Migrations required. Accepts `--connection` / `--conn` to target a single context and `--connections` / `--conns` to target a specific subset.
+
+- ### Migrations command integration
+    > *requires `doctrine/doctrine-migrations-bundle`*
+
+    Every `doctrine:migrations:*` command gains `--em` / `--ems` and `--conn` / `--conns` options. Pass one to target a single context or a subset, or omit all to run across every registered context in sequence.
+
+- ### ORM command integration**
+    > *requires `doctrine/orm`*
+
+    The `doctrine:schema:create`, `doctrine:schema:validate`, and `doctrine:mapping:info` receive the same fan-out behaviour, including `--em` / `--ems` for subset selection.
+
+- ### Schema filter
+
+    The migration metadata table remains hidden for commands like `doctrine:schema:update` and `doctrine:schema:validate`, so those commands never see it as unmanaged.
+
+- ### Additional command options for every wrapped command
+
+  - **`--ctx-isolation`**: When set, a failure in one context does not abort the remaining contexts.
+  - **`--ctx-all`**: Explicitly runs the command over all registered contexts. Required when `explicit_context` is enabled and no specific context is given.
+
+- ### Bundle configurations about commands execution behavior
+  - **`explicit_context`**: When `true`, every wrapped command requires an explicit context via `--em`, `--ems`, `--conn`, `--conns`, `--connection`, `--connections`, or `--ctx-all`. Prevents accidental fan-out in production environments.
 
 ## Requirements
 
