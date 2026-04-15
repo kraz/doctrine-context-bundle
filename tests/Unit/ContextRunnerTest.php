@@ -11,7 +11,11 @@ use PHPUnit\Framework\TestCase;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Exception\InvalidArgumentException;
 use Symfony\Component\Console\Input\ArrayInput;
+use Symfony\Component\Console\Input\InputDefinition;
+use Symfony\Component\Console\Input\InputOption;
+use Symfony\Component\Console\Output\BufferedOutput;
 use Symfony\Component\Console\Output\NullOutput;
+use ValueError;
 
 class ContextRunnerTest extends TestCase
 {
@@ -117,5 +121,106 @@ class ContextRunnerTest extends TestCase
 
         self::assertTrue($wrapper->getDefinition()->hasOption('ctx-isolation'));
         self::assertTrue($wrapper->getDefinition()->hasOption('ctx-all'));
+        self::assertTrue($wrapper->getDefinition()->hasOption('ctx-output-style'));
+    }
+
+    public function testWalkDoctrineContextsSectionStylePrintsSectionHeaders(): void
+    {
+        $configuration = new Configuration();
+        $configuration->registerContext('alpha', false);
+        $configuration->registerContext('beta', true);
+        $runner = new ContextRunner($configuration);
+
+        $output = new BufferedOutput();
+        $input  = $this->createWalkInput('section');
+
+        $runner->walkDoctrineContexts(
+            static fn () => Command::SUCCESS,
+            ['alpha' => null, 'beta' => null],
+            $input,
+            $output,
+        );
+
+        $result = $output->fetch();
+        self::assertStringContainsString('Connection: alpha', $result);
+        self::assertStringContainsString('Entity Manager: beta', $result);
+    }
+
+    public function testWalkDoctrineContextsLineStylePrintsInlinePrefix(): void
+    {
+        $configuration = new Configuration();
+        $configuration->registerContext('alpha', false);
+        $configuration->registerContext('beta', true);
+        $runner = new ContextRunner($configuration);
+
+        $output = new BufferedOutput();
+        $input  = $this->createWalkInput('line');
+
+        $runner->walkDoctrineContexts(
+            static function (mixed $input, mixed $output) {
+                $output->write('some-output');
+
+                return Command::SUCCESS;
+            },
+            ['alpha' => null, 'beta' => null],
+            $input,
+            $output,
+        );
+
+        $result = $output->fetch();
+        self::assertStringContainsString('(c) alpha: some-output', $result);
+        self::assertStringContainsString('(e) beta: some-output', $result);
+    }
+
+    public function testWalkDoctrineContextsNoneStylePrintsNoContextName(): void
+    {
+        $configuration = new Configuration();
+        $configuration->registerContext('alpha', false);
+        $configuration->registerContext('beta', true);
+        $runner = new ContextRunner($configuration);
+
+        $output = new BufferedOutput();
+        $input  = $this->createWalkInput('none');
+
+        $runner->walkDoctrineContexts(
+            static fn () => Command::SUCCESS,
+            ['alpha' => null, 'beta' => null],
+            $input,
+            $output,
+        );
+
+        $result = $output->fetch();
+        self::assertStringNotContainsString('alpha', $result);
+        self::assertStringNotContainsString('beta', $result);
+    }
+
+    public function testWalkDoctrineContextsThrowsForInvalidOutputStyle(): void
+    {
+        $runner = new ContextRunner(new Configuration());
+
+        $output = new BufferedOutput();
+        $input  = $this->createWalkInput('invalid');
+
+        $this->expectException(ValueError::class);
+
+        $runner->walkDoctrineContexts(
+            static fn () => Command::SUCCESS,
+            ['alpha' => null],
+            $input,
+            $output,
+        );
+    }
+
+    private function createWalkInput(string $outputStyle): ArrayInput
+    {
+        $definition = new InputDefinition([
+            new InputOption('ctx-isolation', null, InputOption::VALUE_NONE),
+            new InputOption('ctx-output-style', null, InputOption::VALUE_REQUIRED, '', 'section'),
+        ]);
+
+        $input = new ArrayInput(['--ctx-output-style' => $outputStyle], $definition);
+        $input->setInteractive(false);
+
+        return $input;
     }
 }

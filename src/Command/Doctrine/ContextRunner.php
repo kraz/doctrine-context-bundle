@@ -74,6 +74,14 @@ final class ContextRunner
         $wrapper->setDefinition($nativeDefinition);
         $wrapper->addOption('ctx-isolation', null, InputOption::VALUE_NONE, 'Continue with the next context, if the current one fails.');
         $wrapper->addOption('ctx-all', null, InputOption::VALUE_NONE, 'Run the command over all registered contexts (when explicit_context: true).');
+        $wrapper->addOption(
+            'ctx-output-style',
+            null,
+            InputOption::VALUE_REQUIRED,
+            sprintf('How the context name is printed: (%s)', implode(', ', ContextOutputStyle::values())),
+            ContextOutputStyle::Section->value,
+            ContextOutputStyle::values(),
+        );
 
         foreach ($this->strategies as $strategy) {
             if ($strategy->supports($innerCommand)) {
@@ -81,6 +89,21 @@ final class ContextRunner
                 break;
             }
         }
+
+        $wrapper->setHelp($wrapper->getHelp() . <<<'EOT'
+
+
+<comment>Doctrine Context options:</comment>
+
+Run the command over all registered contexts with error isolation:
+
+    <info>%command.full_name% --ctx-all --ctx-isolation</info>
+
+Change how the context name is printed in the output:
+
+    <info>%command.full_name% --ctx-output-style=line</info>
+    <info>%command.full_name% --ctx-output-style=none</info>
+EOT);
     }
 
     public function run(Command $wrapper, Command $innerCommand, InputInterface $input, OutputInterface $output): int
@@ -100,12 +123,26 @@ final class ContextRunner
         $result           = Command::SUCCESS;
         $ui               = new SymfonyStyle($input, $output)->getErrorStyle();
         $contextIsolation = $input->getOption('ctx-isolation');
+        $outputStyle      = ContextOutputStyle::from($input->getOption('ctx-output-style'));
         $total            = count($list);
         while (count($list) > 0) {
             $contextName       = array_key_first($list);
             $dependencyFactory = array_shift($list);
+            $isEntityManager   = $this->configuration->isEntityManager($contextName);
             if ($total > 1) {
-                $ui->section(sprintf('%s: %s', $this->configuration->isEntityManager($contextName) ? 'Entity Manager' : 'Connection', $contextName));
+                match ($outputStyle) {
+                    ContextOutputStyle::Section => $ui->section(sprintf(
+                        '%s: %s',
+                        $isEntityManager ? 'Entity Manager' : 'Connection',
+                        $contextName,
+                    )),
+                    ContextOutputStyle::Line => $output->write(sprintf(
+                        '%s %s: ',
+                        $isEntityManager ? '(e)' : '(c)',
+                        $contextName,
+                    )),
+                    ContextOutputStyle::None => null,
+                };
             }
 
             try {
@@ -115,7 +152,7 @@ final class ContextRunner
                 $cmdResult = Command::FAILURE;
             }
 
-            if ($total > 1) {
+            if ($total > 1 && $outputStyle === ContextOutputStyle::Section) {
                 $ui->newLine();
             }
 
