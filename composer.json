@@ -1,12 +1,16 @@
 {
     "name": "kraz/doctrine-context-bundle",
     "type": "symfony-bundle",
-    "description": "Symfony bundle for working with more than one doctrine entity manager or connection.",
+    "description": "Symfony bundle for working with multiple databases via doctrine entity manager or connection.",
     "keywords": [
         "symfony",
         "doctrine",
+        "multiple",
+        "database",
         "context",
-        "migrations"
+        "migrations",
+        "connection",
+        "connections"
     ],
     "license": "MIT",
     "authors": [
